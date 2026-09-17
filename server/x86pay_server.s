@@ -543,6 +543,224 @@ status_409:
 status_409_end:
 .equ status_409_len, status_409_end - status_409
 
+status_402:
+    .ascii "402 Payment Required"
+status_402_end:
+.equ status_402_len, status_402_end - status_402
+
+# --- Transfers / Withdrawals / Reversals / Events routes ---
+
+post_acct_prefix:
+    .ascii "POST /v1/accounts/acct_x86_"
+post_acct_prefix_end:
+.equ post_acct_prefix_len, post_acct_prefix_end - post_acct_prefix
+
+send_suffix:
+    .ascii "/send "
+send_suffix_end:
+.equ send_suffix_len, send_suffix_end - send_suffix
+
+withdraw_suffix:
+    .ascii "/withdraw "
+withdraw_suffix_end:
+.equ withdraw_suffix_len, withdraw_suffix_end - withdraw_suffix
+
+deposit_suffix:
+    .ascii "/deposit "
+deposit_suffix_end:
+.equ deposit_suffix_len, deposit_suffix_end - deposit_suffix
+
+post_txn_prefix:
+    .ascii "POST /v1/transactions/txn_x86_"
+post_txn_prefix_end:
+.equ post_txn_prefix_len, post_txn_prefix_end - post_txn_prefix
+
+reverse_suffix:
+    .ascii "/reverse "
+reverse_suffix_end:
+.equ reverse_suffix_len, reverse_suffix_end - reverse_suffix
+
+get_events_list_route:
+    .ascii "GET /v1/events "
+get_events_list_route_end:
+.equ get_events_list_route_len, get_events_list_route_end - get_events_list_route
+
+get_events_prefix:
+    .ascii "GET /v1/events/evt_x86_"
+get_events_prefix_end:
+.equ get_events_prefix_len, get_events_prefix_end - get_events_prefix
+
+# --- Form keys for money movement ---
+
+to_account_id_key:
+    .ascii "to_account_id="
+to_account_id_key_end:
+.equ to_account_id_key_len, to_account_id_key_end - to_account_id_key
+
+acct_x86_prefix:
+    .ascii "acct_x86_"
+acct_x86_prefix_end:
+.equ acct_x86_prefix_len, acct_x86_prefix_end - acct_x86_prefix
+
+# --- Txn type names ---
+
+json_txn_type_transfer:
+    .ascii "transfer"
+json_txn_type_transfer_end:
+.equ json_txn_type_transfer_len, json_txn_type_transfer_end - json_txn_type_transfer
+
+json_txn_type_withdrawal:
+    .ascii "withdrawal"
+json_txn_type_withdrawal_end:
+.equ json_txn_type_withdrawal_len, json_txn_type_withdrawal_end - json_txn_type_withdrawal
+
+json_txn_type_deposit:
+    .ascii "deposit"
+json_txn_type_deposit_end:
+.equ json_txn_type_deposit_len, json_txn_type_deposit_end - json_txn_type_deposit
+
+json_txn_type_reversal:
+    .ascii "reversal"
+json_txn_type_reversal_end:
+.equ json_txn_type_reversal_len, json_txn_type_reversal_end - json_txn_type_reversal
+
+# --- Transfer JSON fragments ---
+
+json_transfer_sender_mid:
+    .ascii "\",\"object\":\"transaction\",\"sender_id\":\"acct_x86_"
+json_transfer_sender_mid_end:
+.equ json_transfer_sender_mid_len, json_transfer_sender_mid_end - json_transfer_sender_mid
+
+json_transfer_recipient_mid:
+    .ascii "\",\"recipient_id\":\"acct_x86_"
+json_transfer_recipient_mid_end:
+.equ json_transfer_recipient_mid_len, json_transfer_recipient_mid_end - json_transfer_recipient_mid
+
+# --- Reversal JSON fragments ---
+
+json_rev_txnid_mid:
+    .ascii "\",\"object\":\"transaction\",\"transaction_id\":\"txn_x86_"
+json_rev_txnid_mid_end:
+.equ json_rev_txnid_mid_len, json_rev_txnid_mid_end - json_rev_txnid_mid
+
+# --- Event JSON fragments ---
+
+json_evt_id_prefix:
+    .ascii "{\"id\":\"evt_x86_"
+json_evt_id_prefix_end:
+.equ json_evt_id_prefix_len, json_evt_id_prefix_end - json_evt_id_prefix
+
+json_evt_object_type:
+    .ascii "\",\"object\":\"event\",\"type\":\""
+json_evt_object_type_end:
+.equ json_evt_object_type_len, json_evt_object_type_end - json_evt_object_type
+
+json_evt_txn_mid:
+    .ascii "\",\"transaction_id\":\"txn_x86_"
+json_evt_txn_mid_end:
+.equ json_evt_txn_mid_len, json_evt_txn_mid_end - json_evt_txn_mid
+
+json_evt_amount_mid:
+    .ascii "\",\"amount\":"
+json_evt_amount_mid_end:
+.equ json_evt_amount_mid_len, json_evt_amount_mid_end - json_evt_amount_mid
+
+json_evt_currency_mid:
+    .ascii ",\"currency\":\"usd\""
+json_evt_currency_mid_end:
+.equ json_evt_currency_mid_len, json_evt_currency_mid_end - json_evt_currency_mid
+
+json_evt_reqid_mid:
+    .ascii ",\"request_id\":\"req_x86_"
+json_evt_reqid_mid_end:
+.equ json_evt_reqid_mid_len, json_evt_reqid_mid_end - json_evt_reqid_mid
+
+evt_kind_transfer:
+    .ascii "transfer.created"
+evt_kind_transfer_end:
+.equ evt_kind_transfer_len, evt_kind_transfer_end - evt_kind_transfer
+
+evt_kind_withdrawal:
+    .ascii "withdrawal.created"
+evt_kind_withdrawal_end:
+.equ evt_kind_withdrawal_len, evt_kind_withdrawal_end - evt_kind_withdrawal
+
+evt_kind_deposit:
+    .ascii "deposit.created"
+evt_kind_deposit_end:
+.equ evt_kind_deposit_len, evt_kind_deposit_end - evt_kind_deposit
+
+evt_kind_reversal:
+    .ascii "reversal.created"
+evt_kind_reversal_end:
+.equ evt_kind_reversal_len, evt_kind_reversal_end - evt_kind_reversal
+
+json_events_list_prefix:
+    .ascii "{\"object\":\"list\",\"data\":["
+json_events_list_prefix_end:
+.equ json_events_list_prefix_len, json_events_list_prefix_end - json_events_list_prefix
+
+json_events_list_mid:
+    .ascii "],\"request_id\":\"req_x86_"
+json_events_list_mid_end:
+.equ json_events_list_mid_len, json_events_list_mid_end - json_events_list_mid
+
+json_comma:
+    .ascii ","
+json_comma_end:
+.equ json_comma_len, json_comma_end - json_comma
+
+json_rbrace:
+    .ascii "}"
+json_rbrace_end:
+.equ json_rbrace_len, json_rbrace_end - json_rbrace
+
+# --- Money-movement error messages ---
+
+msg_missing_to_account:
+    .ascii "missing required field: to_account_id"
+msg_missing_to_account_end:
+.equ msg_missing_to_account_len, msg_missing_to_account_end - msg_missing_to_account
+
+msg_missing_amount:
+    .ascii "missing required field: amount"
+msg_missing_amount_end:
+.equ msg_missing_amount_len, msg_missing_amount_end - msg_missing_amount
+
+msg_self_send:
+    .ascii "cannot send to self"
+msg_self_send_end:
+.equ msg_self_send_len, msg_self_send_end - msg_self_send
+
+msg_insufficient:
+    .ascii "insufficient funds"
+msg_insufficient_end:
+.equ msg_insufficient_len, msg_insufficient_end - msg_insufficient
+
+msg_already_reversed:
+    .ascii "transaction already reversed"
+msg_already_reversed_end:
+.equ msg_already_reversed_len, msg_already_reversed_end - msg_already_reversed
+
+msg_cannot_reverse:
+    .ascii "cannot reverse this transaction"
+msg_cannot_reverse_end:
+.equ msg_cannot_reverse_len, msg_cannot_reverse_end - msg_cannot_reverse
+
+msg_event_not_found:
+    .ascii "event not found"
+msg_event_not_found_end:
+.equ msg_event_not_found_len, msg_event_not_found_end - msg_event_not_found
+
+code_insufficient:
+    .ascii "insufficient_funds"
+code_insufficient_end:
+.equ code_insufficient_len, code_insufficient_end - code_insufficient
+
+.equ EVENT_TABLE_CAP, 16
+# txn types: 1=account_opened 2=transfer 3=withdrawal 4=reversal 5=deposit
+# event kinds: 1=transfer 2=withdrawal 3=deposit 4=reversal
+
 .section .bss
 
 .align 8
@@ -551,7 +769,7 @@ request_buf:
 response_buf:
     .zero 8192
 json_buf:
-    .zero 2048
+    .zero 4096
 num_buf:
     .zero 32
 currency_tmp:
@@ -633,6 +851,22 @@ txn_amounts:
     .zero TXN_TABLE_CAP * 8
 txn_types:
     .zero TXN_TABLE_CAP * 8
+txn_extra:
+    .zero TXN_TABLE_CAP * 8
+txn_flags:
+    .zero TXN_TABLE_CAP * 8
+txn_link:
+    .zero TXN_TABLE_CAP * 8
+
+# --- Events table (bounded in-memory trail) ---
+event_count:
+    .quad 0
+event_kinds:
+    .zero EVENT_TABLE_CAP * 8
+event_txn_ids:
+    .zero EVENT_TABLE_CAP * 8
+event_amounts:
+    .zero EVENT_TABLE_CAP * 8
 
 # --- Temp form value buffers ---
 form_value_buf:
@@ -644,6 +878,24 @@ form_value_len:
 account_id:
     .quad 0
 user_number:
+    .quad 0
+move_src:
+    .quad 0
+move_dst:
+    .quad 0
+move_amount:
+    .quad 0
+move_txn:
+    .quad 0
+fv_to_seen:
+    .quad 0
+fv_amount_seen:
+    .quad 0
+fv_currency_seen:
+    .quad 0
+fv_to_num:
+    .quad 0
+fv_amount_val:
     .quad 0
 
 .section .text
@@ -1061,6 +1313,42 @@ auth_trim_done:
     call find_sequence
     cmp rax, rbx
     je retrieve_transaction
+
+    # POST /v1/accounts/acct_x86_N/send|withdraw|deposit
+    mov rsi, rbx
+    mov rcx, [rel request_len]
+    lea rdi, [rel post_acct_prefix]
+    mov edx, post_acct_prefix_len
+    call find_sequence
+    cmp rax, rbx
+    je route_post_account_money
+
+    # POST /v1/transactions/txn_x86_N/reverse
+    mov rsi, rbx
+    mov rcx, [rel request_len]
+    lea rdi, [rel post_txn_prefix]
+    mov edx, post_txn_prefix_len
+    call find_sequence
+    cmp rax, rbx
+    je route_post_txn_reverse
+
+    # GET /v1/events/evt_x86_N
+    mov rsi, rbx
+    mov rcx, [rel request_len]
+    lea rdi, [rel get_events_prefix]
+    mov edx, get_events_prefix_len
+    call find_sequence
+    cmp rax, rbx
+    je retrieve_event
+
+    # GET /v1/events (list)
+    mov rsi, rbx
+    mov rcx, [rel request_len]
+    lea rdi, [rel get_events_list_route]
+    mov edx, get_events_list_route_len
+    call find_sequence
+    cmp rax, rbx
+    je list_events
 
     jmp respond_404
 
@@ -2821,7 +3109,17 @@ retrieve_transaction:
     ja respond_txn_not_found
     mov rbx, rax
     dec rbx
-    # Build JSON: {"id":"txn_x86_N","object":"transaction","account_id":"acct_x86_M","amount":0,"type":"account_opened","request_id":"req_x86_N"}
+    lea rdi, [rel txn_types]
+    mov rax, [rdi + rbx * 8]
+    cmp rax, 2
+    je retrieve_txn_transfer
+    cmp rax, 3
+    je retrieve_txn_withdrawal
+    cmp rax, 4
+    je retrieve_txn_reversal
+    cmp rax, 5
+    je retrieve_txn_deposit
+    # Default: type 1 account_opened.
     lea r14, [rel json_buf]
     lea rsi, [rel json_txn_id_prefix]
     mov ecx, json_txn_id_prefix_len
@@ -2843,9 +3141,6 @@ retrieve_transaction:
     lea rsi, [rel json_txn_type_mid]
     mov ecx, json_txn_type_mid_len
     call copy_to_r14
-    lea rdi, [rel txn_types]
-    cmp qword ptr [rdi + rbx * 8], 1
-    jne txn_type_other
     lea rsi, [rel json_txn_type_opened]
     mov ecx, json_txn_type_opened_len
     call copy_to_r14
@@ -2856,6 +3151,184 @@ txn_type_other:
     mov ecx, json_txn_type_opened_len
     call copy_to_r14
 txn_type_done:
+    lea rsi, [rel json_txn_reqid_mid]
+    mov ecx, json_txn_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+
+retrieve_txn_transfer:
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_txn_id_prefix]
+    mov ecx, json_txn_id_prefix_len
+    call copy_to_r14
+    lea rax, [rbx + 1]
+    call append_u64_to_r14
+    lea rsi, [rel json_transfer_sender_mid]
+    mov ecx, json_transfer_sender_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_transfer_recipient_mid]
+    mov ecx, json_transfer_recipient_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_extra]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_amount_mid]
+    mov ecx, json_txn_amount_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_type_mid]
+    mov ecx, json_txn_type_mid_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_type_transfer]
+    mov ecx, json_txn_type_transfer_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_reqid_mid]
+    mov ecx, json_txn_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+
+retrieve_txn_withdrawal:
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_txn_id_prefix]
+    mov ecx, json_txn_id_prefix_len
+    call copy_to_r14
+    lea rax, [rbx + 1]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_object_acctid]
+    mov ecx, json_txn_object_acctid_len
+    call copy_to_r14
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_amount_mid]
+    mov ecx, json_txn_amount_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_type_mid]
+    mov ecx, json_txn_type_mid_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_type_withdrawal]
+    mov ecx, json_txn_type_withdrawal_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_reqid_mid]
+    mov ecx, json_txn_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+
+retrieve_txn_deposit:
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_txn_id_prefix]
+    mov ecx, json_txn_id_prefix_len
+    call copy_to_r14
+    lea rax, [rbx + 1]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_object_acctid]
+    mov ecx, json_txn_object_acctid_len
+    call copy_to_r14
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_amount_mid]
+    mov ecx, json_txn_amount_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_type_mid]
+    mov ecx, json_txn_type_mid_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_type_deposit]
+    mov ecx, json_txn_type_deposit_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_reqid_mid]
+    mov ecx, json_txn_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+
+retrieve_txn_reversal:
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_txn_id_prefix]
+    mov ecx, json_txn_id_prefix_len
+    call copy_to_r14
+    lea rax, [rbx + 1]
+    call append_u64_to_r14
+    lea rsi, [rel json_rev_txnid_mid]
+    mov ecx, json_rev_txnid_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_link]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_amount_mid]
+    mov ecx, json_txn_amount_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_type_mid]
+    mov ecx, json_txn_type_mid_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_type_reversal]
+    mov ecx, json_txn_type_reversal_len
+    call copy_to_r14
     lea rsi, [rel json_txn_reqid_mid]
     mov ecx, json_txn_reqid_mid_len
     call copy_to_r14
@@ -2886,6 +3359,1486 @@ respond_txn_not_found:
     lea rdx, [rel json_buf]
     lea rsi, [rel status_404]
     mov ecx, status_404_len
+    call send_json
+    ret
+
+# check_form_ct: RBX=request start. Returns EAX=1 ok, 0 bad.
+check_form_ct:
+    push rbx
+    push r14
+    push r15
+    mov rsi, rbx
+    mov rcx, [rel header_len]
+    lea rdi, [rel ct_name]
+    mov edx, ct_name_len
+    call find_sequence_ci
+    test rax, rax
+    jz cfct_bad
+    mov [rel hdr_tmp_first], rax
+    mov rsi, rax
+    inc rsi
+    mov r8, rbx
+    add r8, [rel header_len]
+    cmp rsi, r8
+    jae cfct_no_dup
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel ct_name]
+    mov edx, ct_name_len
+    call find_sequence_ci
+    test rax, rax
+    jnz cfct_bad
+cfct_no_dup:
+    mov rax, [rel hdr_tmp_first]
+    add rax, ct_name_len
+    mov rsi, rax
+    mov r8, rbx
+    add r8, [rel header_len]
+cfct_skip:
+    cmp rsi, r8
+    jae cfct_bad
+    movzx eax, byte ptr [rsi]
+    cmp al, 32
+    je cfct_skip_inc
+    cmp al, 9
+    je cfct_skip_inc
+    jmp cfct_val
+cfct_skip_inc:
+    inc rsi
+    jmp cfct_skip
+cfct_val:
+    mov rdx, rsi
+cfct_eol:
+    cmp rdx, r8
+    jae cfct_bad
+    movzx eax, byte ptr [rdx]
+    cmp al, 13
+    je cfct_eol_found
+    cmp al, 10
+    je cfct_eol_found
+    inc rdx
+    jmp cfct_eol
+cfct_eol_found:
+    mov rcx, rdx
+cfct_trim:
+    cmp rcx, rsi
+    jbe cfct_done
+    movzx eax, byte ptr [rcx - 1]
+    cmp al, 32
+    je cfct_trim_dec
+    cmp al, 9
+    je cfct_trim_dec
+    jmp cfct_done
+cfct_trim_dec:
+    dec rcx
+    jmp cfct_trim
+cfct_done:
+    mov rax, rcx
+    sub rax, rsi
+    cmp rax, ct_expected_len
+    jne cfct_bad
+    mov rcx, rax
+    lea rdi, [rel ct_expected]
+    call buffers_equal
+    test eax, eax
+    jz cfct_bad
+    pop r15
+    pop r14
+    pop rbx
+    mov eax, 1
+    ret
+cfct_bad:
+    pop r15
+    pop r14
+    pop rbx
+    xor eax, eax
+    ret
+
+# --- Route: POST /v1/accounts/acct_x86_N/send|withdraw|deposit ---
+route_post_account_money:
+    lea rsi, [rbx + post_acct_prefix_len]
+    mov r8, rbx
+    add r8, [rel request_len]
+    xor rax, rax
+    xor r10d, r10d
+rpam_digit_loop:
+    cmp rsi, r8
+    jae rpam_digits_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb rpam_digits_done
+    cmp dl, '9'
+    ja rpam_digits_done
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    inc r10
+    jmp rpam_digit_loop
+rpam_digits_done:
+    test r10, r10
+    jz respond_404
+    mov [rel move_src], rax
+    mov r15, rsi
+    mov rsi, r15
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel send_suffix]
+    mov edx, send_suffix_len
+    call find_sequence
+    cmp rax, r15
+    je handle_send
+    mov r8, rbx
+    add r8, [rel request_len]
+    mov rsi, r15
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel withdraw_suffix]
+    mov edx, withdraw_suffix_len
+    call find_sequence
+    cmp rax, r15
+    je handle_withdraw
+    mov r8, rbx
+    add r8, [rel request_len]
+    mov rsi, r15
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel deposit_suffix]
+    mov edx, deposit_suffix_len
+    call find_sequence
+    cmp rax, r15
+    je handle_deposit
+    jmp respond_404
+
+# --- Route: POST /v1/transactions/txn_x86_N/reverse ---
+route_post_txn_reverse:
+    lea rsi, [rbx + post_txn_prefix_len]
+    mov r8, rbx
+    add r8, [rel request_len]
+    xor rax, rax
+    xor r10d, r10d
+rptr_digit_loop:
+    cmp rsi, r8
+    jae rptr_digits_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb rptr_digits_done
+    cmp dl, '9'
+    ja rptr_digits_done
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    inc r10
+    jmp rptr_digit_loop
+rptr_digits_done:
+    test r10, r10
+    jz respond_404
+    mov [rel move_txn], rax
+    mov r15, rsi
+    mov rsi, r15
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel reverse_suffix]
+    mov edx, reverse_suffix_len
+    call find_sequence
+    cmp rax, r15
+    je handle_reverse
+    jmp respond_404
+
+# --- POST /v1/accounts/acct_x86_N/send ---
+handle_send:
+    call check_form_ct
+    test eax, eax
+    jz respond_400
+    mov rax, rbx
+    add rax, [rel header_len]
+    mov [rel body_ptr], rax
+    mov rdx, rbx
+    add rdx, [rel request_len]
+    mov [rel body_end], rdx
+    mov qword ptr [rel fv_to_seen], 0
+    mov qword ptr [rel fv_amount_seen], 0
+    mov qword ptr [rel fv_currency_seen], 0
+    mov qword ptr [rel fv_to_num], 0
+    mov qword ptr [rel fv_amount_val], 0
+    mov r14, [rel body_ptr]
+    mov r15, [rel body_end]
+    cmp r14, r15
+    je hs_missing_to
+hs_token_loop:
+    mov rdx, r14
+hs_find_amp:
+    cmp rdx, r15
+    jae hs_token_end_found
+    cmp byte ptr [rdx], '&'
+    je hs_token_end_found
+    inc rdx
+    jmp hs_find_amp
+hs_token_end_found:
+    mov [rel form_token_end], rdx
+    mov rcx, rdx
+    sub rcx, r14
+    test rcx, rcx
+    jz hs_invalid
+    mov [rel form_token_len], rcx
+    mov rsi, r14
+    mov rcx, [rel form_token_len]
+    lea rdi, [rel to_account_id_key]
+    mov edx, to_account_id_key_len
+    call find_sequence
+    cmp rax, r14
+    je hs_parse_to
+    mov rsi, r14
+    mov rcx, [rel form_token_len]
+    lea rdi, [rel amount_key]
+    mov edx, amount_key_len
+    call find_sequence
+    cmp rax, r14
+    je hs_parse_amount
+    mov rsi, r14
+    mov rcx, [rel form_token_len]
+    lea rdi, [rel currency_key]
+    mov edx, currency_key_len
+    call find_sequence
+    cmp rax, r14
+    je hs_parse_currency
+    jmp hs_invalid
+hs_parse_to:
+    cmp qword ptr [rel fv_to_seen], 0
+    jne hs_invalid
+    lea rsi, [r14 + to_account_id_key_len]
+    mov r8, [rel form_token_end]
+    mov rcx, r8
+    sub rcx, rsi
+    cmp rcx, acct_x86_prefix_len + 1
+    jb hs_invalid
+    cmp rcx, acct_x86_prefix_len + 8
+    ja hs_invalid
+    push rsi
+    push rcx
+    lea rdi, [rel acct_x86_prefix]
+    mov rcx, acct_x86_prefix_len
+    call buffers_equal
+    pop rcx
+    pop rsi
+    test eax, eax
+    jz hs_invalid
+    lea rsi, [rsi + acct_x86_prefix_len]
+    mov r8, [rel form_token_end]
+    xor rax, rax
+    xor ecx, ecx
+hs_to_digits:
+    cmp rsi, r8
+    jae hs_to_digits_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb hs_invalid
+    cmp dl, '9'
+    ja hs_invalid
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    inc ecx
+    cmp ecx, 8
+    ja hs_invalid
+    jmp hs_to_digits
+hs_to_digits_done:
+    test ecx, ecx
+    jz hs_invalid
+    cmp rsi, r8
+    jne hs_invalid
+    mov [rel fv_to_num], rax
+    mov qword ptr [rel fv_to_seen], 1
+    jmp hs_token_next
+hs_parse_amount:
+    cmp qword ptr [rel fv_amount_seen], 0
+    jne hs_invalid
+    lea rsi, [r14 + amount_key_len]
+    mov r8, [rel form_token_end]
+    xor rax, rax
+    xor ecx, ecx
+hs_amt_digits:
+    cmp rsi, r8
+    jae hs_amt_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb hs_invalid
+    cmp dl, '9'
+    ja hs_invalid
+    inc ecx
+    cmp ecx, 8
+    ja hs_invalid
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    jmp hs_amt_digits
+hs_amt_done:
+    test ecx, ecx
+    jz hs_invalid
+    test rax, rax
+    jz hs_invalid
+    cmp rsi, r8
+    jne hs_invalid
+    mov [rel fv_amount_val], rax
+    mov qword ptr [rel fv_amount_seen], 1
+    jmp hs_token_next
+hs_parse_currency:
+    cmp qword ptr [rel fv_currency_seen], 0
+    jne hs_invalid
+    mov rcx, [rel form_token_len]
+    cmp rcx, currency_key_len + 3
+    jne hs_bad_currency
+    lea rsi, [r14 + currency_key_len]
+    cmp byte ptr [rsi], 'u'
+    jne hs_bad_currency
+    cmp byte ptr [rsi + 1], 's'
+    jne hs_bad_currency
+    cmp byte ptr [rsi + 2], 'd'
+    jne hs_bad_currency
+    mov qword ptr [rel fv_currency_seen], 1
+    jmp hs_token_next
+hs_token_next:
+    mov rsi, [rel form_token_end]
+    cmp rsi, r15
+    je hs_form_done
+    cmp byte ptr [rsi], '&'
+    jne hs_invalid
+    inc rsi
+    cmp rsi, r15
+    jae hs_invalid
+    mov r14, rsi
+    jmp hs_token_loop
+hs_form_done:
+    cmp qword ptr [rel fv_to_seen], 1
+    jne hs_missing_to
+    cmp qword ptr [rel fv_amount_seen], 1
+    jne hs_missing_amount
+    cmp qword ptr [rel fv_currency_seen], 1
+    jne hs_missing_currency
+    mov rax, [rel move_src]
+    cmp rax, 1
+    jb respond_404
+    cmp rax, [rel acct_count]
+    ja respond_404
+    mov rax, [rel fv_to_num]
+    cmp rax, 1
+    jb respond_404
+    cmp rax, [rel acct_count]
+    ja respond_404
+    mov rax, [rel move_src]
+    cmp rax, [rel fv_to_num]
+    je hs_self_send
+    mov rax, [rel txn_count]
+    cmp rax, TXN_TABLE_CAP
+    jae hs_table_full
+    mov rax, [rel event_count]
+    cmp rax, EVENT_TABLE_CAP
+    jae hs_table_full
+    mov rax, [rel move_src]
+    dec rax
+    mov rbx, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + rbx * 8]
+    cmp rax, [rel fv_amount_val]
+    jb hs_insufficient
+    mov rcx, [rel fv_amount_val]
+    sub rax, rcx
+    mov [rdi + rbx * 8], rax
+    mov rax, [rel fv_to_num]
+    dec rax
+    mov rbx, rax
+    mov rax, [rdi + rbx * 8]
+    add rax, rcx
+    mov [rdi + rbx * 8], rax
+    mov r10, [rel txn_count]
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rel move_src]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_extra]
+    mov rax, [rel fv_to_num]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_amounts]
+    mov rax, [rel fv_amount_val]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_types]
+    mov qword ptr [rdi + r10 * 8], 2
+    lea rdi, [rel txn_flags]
+    mov qword ptr [rdi + r10 * 8], 0
+    lea rdi, [rel txn_link]
+    mov qword ptr [rdi + r10 * 8], 0
+    inc qword ptr [rel txn_count]
+    mov r10, [rel event_count]
+    lea rdi, [rel event_kinds]
+    mov qword ptr [rdi + r10 * 8], 1
+    lea rdi, [rel event_txn_ids]
+    mov rax, [rel txn_count]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel event_amounts]
+    mov rax, [rel fv_amount_val]
+    mov [rdi + r10 * 8], rax
+    inc qword ptr [rel event_count]
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_txn_id_prefix]
+    mov ecx, json_txn_id_prefix_len
+    call copy_to_r14
+    mov rax, [rel txn_count]
+    call append_u64_to_r14
+    lea rsi, [rel json_transfer_sender_mid]
+    mov ecx, json_transfer_sender_mid_len
+    call copy_to_r14
+    mov rax, [rel move_src]
+    call append_u64_to_r14
+    lea rsi, [rel json_transfer_recipient_mid]
+    mov ecx, json_transfer_recipient_mid_len
+    call copy_to_r14
+    mov rax, [rel fv_to_num]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_amount_mid]
+    mov ecx, json_txn_amount_mid_len
+    call copy_to_r14
+    mov rax, [rel fv_amount_val]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_type_mid]
+    mov ecx, json_txn_type_mid_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_type_transfer]
+    mov ecx, json_txn_type_transfer_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_reqid_mid]
+    mov ecx, json_txn_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+hs_missing_to:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_to_account]
+    mov r10d, msg_missing_to_account_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hs_missing_amount:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_amount]
+    mov r10d, msg_missing_amount_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hs_missing_currency:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_currency]
+    mov r10d, msg_missing_currency_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hs_bad_currency:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_invalid_currency]
+    mov r10d, msg_invalid_currency_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hs_invalid:
+    jmp respond_400
+hs_self_send:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_self_send]
+    mov r10d, msg_self_send_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hs_insufficient:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_insufficient]
+    mov r8d, code_insufficient_len
+    lea r9, [rel msg_insufficient]
+    mov r10d, msg_insufficient_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_402]
+    mov ecx, status_402_len
+    call send_json
+    ret
+hs_table_full:
+    jmp ca_table_full
+
+# --- POST /v1/accounts/acct_x86_N/withdraw ---
+handle_withdraw:
+    call check_form_ct
+    test eax, eax
+    jz respond_400
+    mov rax, rbx
+    add rax, [rel header_len]
+    mov [rel body_ptr], rax
+    mov rdx, rbx
+    add rdx, [rel request_len]
+    mov [rel body_end], rdx
+    mov qword ptr [rel fv_amount_seen], 0
+    mov qword ptr [rel fv_currency_seen], 0
+    mov qword ptr [rel fv_amount_val], 0
+    mov r14, [rel body_ptr]
+    mov r15, [rel body_end]
+    cmp r14, r15
+    je hw_missing_amount
+hw_token_loop:
+    mov rdx, r14
+hw_find_amp:
+    cmp rdx, r15
+    jae hw_token_end_found
+    cmp byte ptr [rdx], '&'
+    je hw_token_end_found
+    inc rdx
+    jmp hw_find_amp
+hw_token_end_found:
+    mov [rel form_token_end], rdx
+    mov rcx, rdx
+    sub rcx, r14
+    test rcx, rcx
+    jz hw_invalid
+    mov [rel form_token_len], rcx
+    mov rsi, r14
+    mov rcx, [rel form_token_len]
+    lea rdi, [rel amount_key]
+    mov edx, amount_key_len
+    call find_sequence
+    cmp rax, r14
+    je hw_parse_amount
+    mov rsi, r14
+    mov rcx, [rel form_token_len]
+    lea rdi, [rel currency_key]
+    mov edx, currency_key_len
+    call find_sequence
+    cmp rax, r14
+    je hw_parse_currency
+    jmp hw_invalid
+hw_parse_amount:
+    cmp qword ptr [rel fv_amount_seen], 0
+    jne hw_invalid
+    lea rsi, [r14 + amount_key_len]
+    mov r8, [rel form_token_end]
+    xor rax, rax
+    xor ecx, ecx
+hw_amt_digits:
+    cmp rsi, r8
+    jae hw_amt_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb hw_invalid
+    cmp dl, '9'
+    ja hw_invalid
+    inc ecx
+    cmp ecx, 8
+    ja hw_invalid
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    jmp hw_amt_digits
+hw_amt_done:
+    test ecx, ecx
+    jz hw_invalid
+    test rax, rax
+    jz hw_invalid
+    cmp rsi, r8
+    jne hw_invalid
+    mov [rel fv_amount_val], rax
+    mov qword ptr [rel fv_amount_seen], 1
+    jmp hw_token_next
+hw_parse_currency:
+    cmp qword ptr [rel fv_currency_seen], 0
+    jne hw_invalid
+    mov rcx, [rel form_token_len]
+    cmp rcx, currency_key_len + 3
+    jne hw_bad_currency
+    lea rsi, [r14 + currency_key_len]
+    cmp byte ptr [rsi], 'u'
+    jne hw_bad_currency
+    cmp byte ptr [rsi + 1], 's'
+    jne hw_bad_currency
+    cmp byte ptr [rsi + 2], 'd'
+    jne hw_bad_currency
+    mov qword ptr [rel fv_currency_seen], 1
+    jmp hw_token_next
+hw_token_next:
+    mov rsi, [rel form_token_end]
+    cmp rsi, r15
+    je hw_form_done
+    cmp byte ptr [rsi], '&'
+    jne hw_invalid
+    inc rsi
+    cmp rsi, r15
+    jae hw_invalid
+    mov r14, rsi
+    jmp hw_token_loop
+hw_form_done:
+    cmp qword ptr [rel fv_amount_seen], 1
+    jne hw_missing_amount
+    cmp qword ptr [rel fv_currency_seen], 1
+    jne hw_missing_currency
+    mov rax, [rel move_src]
+    cmp rax, 1
+    jb respond_404
+    cmp rax, [rel acct_count]
+    ja respond_404
+    mov rax, [rel txn_count]
+    cmp rax, TXN_TABLE_CAP
+    jae hw_table_full
+    mov rax, [rel event_count]
+    cmp rax, EVENT_TABLE_CAP
+    jae hw_table_full
+    mov rax, [rel move_src]
+    dec rax
+    mov rbx, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + rbx * 8]
+    cmp rax, [rel fv_amount_val]
+    jb hw_insufficient
+    mov rcx, [rel fv_amount_val]
+    sub rax, rcx
+    mov [rdi + rbx * 8], rax
+    mov r10, [rel txn_count]
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rel move_src]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_extra]
+    mov qword ptr [rdi + r10 * 8], 0
+    lea rdi, [rel txn_amounts]
+    mov rax, [rel fv_amount_val]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_types]
+    mov qword ptr [rdi + r10 * 8], 3
+    lea rdi, [rel txn_flags]
+    mov qword ptr [rdi + r10 * 8], 0
+    lea rdi, [rel txn_link]
+    mov qword ptr [rdi + r10 * 8], 0
+    inc qword ptr [rel txn_count]
+    mov r10, [rel event_count]
+    lea rdi, [rel event_kinds]
+    mov qword ptr [rdi + r10 * 8], 2
+    lea rdi, [rel event_txn_ids]
+    mov rax, [rel txn_count]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel event_amounts]
+    mov rax, [rel fv_amount_val]
+    mov [rdi + r10 * 8], rax
+    inc qword ptr [rel event_count]
+    mov rax, [rel txn_count]
+    dec rax
+    mov rbx, rax
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_txn_id_prefix]
+    mov ecx, json_txn_id_prefix_len
+    call copy_to_r14
+    lea rax, [rbx + 1]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_object_acctid]
+    mov ecx, json_txn_object_acctid_len
+    call copy_to_r14
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_amount_mid]
+    mov ecx, json_txn_amount_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_type_mid]
+    mov ecx, json_txn_type_mid_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_type_withdrawal]
+    mov ecx, json_txn_type_withdrawal_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_reqid_mid]
+    mov ecx, json_txn_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+hw_missing_amount:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_amount]
+    mov r10d, msg_missing_amount_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hw_missing_currency:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_currency]
+    mov r10d, msg_missing_currency_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hw_bad_currency:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_invalid_currency]
+    mov r10d, msg_invalid_currency_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hw_invalid:
+    jmp respond_400
+hw_insufficient:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_insufficient]
+    mov r8d, code_insufficient_len
+    lea r9, [rel msg_insufficient]
+    mov r10d, msg_insufficient_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_402]
+    mov ecx, status_402_len
+    call send_json
+    ret
+hw_table_full:
+    jmp ca_table_full
+
+# --- POST /v1/accounts/acct_x86_N/deposit (minimal funding for money-movement tests) ---
+handle_deposit:
+    call check_form_ct
+    test eax, eax
+    jz respond_400
+    mov rax, rbx
+    add rax, [rel header_len]
+    mov [rel body_ptr], rax
+    mov rdx, rbx
+    add rdx, [rel request_len]
+    mov [rel body_end], rdx
+    mov qword ptr [rel fv_amount_seen], 0
+    mov qword ptr [rel fv_currency_seen], 0
+    mov qword ptr [rel fv_amount_val], 0
+    mov r14, [rel body_ptr]
+    mov r15, [rel body_end]
+    cmp r14, r15
+    je hd_missing_amount
+hd_token_loop:
+    mov rdx, r14
+hd_find_amp:
+    cmp rdx, r15
+    jae hd_token_end_found
+    cmp byte ptr [rdx], '&'
+    je hd_token_end_found
+    inc rdx
+    jmp hd_find_amp
+hd_token_end_found:
+    mov [rel form_token_end], rdx
+    mov rcx, rdx
+    sub rcx, r14
+    test rcx, rcx
+    jz hd_invalid
+    mov [rel form_token_len], rcx
+    mov rsi, r14
+    mov rcx, [rel form_token_len]
+    lea rdi, [rel amount_key]
+    mov edx, amount_key_len
+    call find_sequence
+    cmp rax, r14
+    je hd_parse_amount
+    mov rsi, r14
+    mov rcx, [rel form_token_len]
+    lea rdi, [rel currency_key]
+    mov edx, currency_key_len
+    call find_sequence
+    cmp rax, r14
+    je hd_parse_currency
+    jmp hd_invalid
+hd_parse_amount:
+    cmp qword ptr [rel fv_amount_seen], 0
+    jne hd_invalid
+    lea rsi, [r14 + amount_key_len]
+    mov r8, [rel form_token_end]
+    xor rax, rax
+    xor ecx, ecx
+hd_amt_digits:
+    cmp rsi, r8
+    jae hd_amt_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb hd_invalid
+    cmp dl, '9'
+    ja hd_invalid
+    inc ecx
+    cmp ecx, 8
+    ja hd_invalid
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    jmp hd_amt_digits
+hd_amt_done:
+    test ecx, ecx
+    jz hd_invalid
+    test rax, rax
+    jz hd_invalid
+    cmp rsi, r8
+    jne hd_invalid
+    mov [rel fv_amount_val], rax
+    mov qword ptr [rel fv_amount_seen], 1
+    jmp hd_token_next
+hd_parse_currency:
+    cmp qword ptr [rel fv_currency_seen], 0
+    jne hd_invalid
+    mov rcx, [rel form_token_len]
+    cmp rcx, currency_key_len + 3
+    jne hd_bad_currency
+    lea rsi, [r14 + currency_key_len]
+    cmp byte ptr [rsi], 'u'
+    jne hd_bad_currency
+    cmp byte ptr [rsi + 1], 's'
+    jne hd_bad_currency
+    cmp byte ptr [rsi + 2], 'd'
+    jne hd_bad_currency
+    mov qword ptr [rel fv_currency_seen], 1
+    jmp hd_token_next
+hd_token_next:
+    mov rsi, [rel form_token_end]
+    cmp rsi, r15
+    je hd_form_done
+    cmp byte ptr [rsi], '&'
+    jne hd_invalid
+    inc rsi
+    cmp rsi, r15
+    jae hd_invalid
+    mov r14, rsi
+    jmp hd_token_loop
+hd_form_done:
+    cmp qword ptr [rel fv_amount_seen], 1
+    jne hd_missing_amount
+    cmp qword ptr [rel fv_currency_seen], 1
+    jne hd_missing_currency
+    mov rax, [rel move_src]
+    cmp rax, 1
+    jb respond_404
+    cmp rax, [rel acct_count]
+    ja respond_404
+    mov rax, [rel txn_count]
+    cmp rax, TXN_TABLE_CAP
+    jae hd_table_full
+    mov rax, [rel event_count]
+    cmp rax, EVENT_TABLE_CAP
+    jae hd_table_full
+    mov rax, [rel move_src]
+    dec rax
+    mov rbx, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + rbx * 8]
+    mov rcx, [rel fv_amount_val]
+    add rax, rcx
+    mov [rdi + rbx * 8], rax
+    mov r10, [rel txn_count]
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rel move_src]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_extra]
+    mov qword ptr [rdi + r10 * 8], 0
+    lea rdi, [rel txn_amounts]
+    mov rax, [rel fv_amount_val]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_types]
+    mov qword ptr [rdi + r10 * 8], 5
+    lea rdi, [rel txn_flags]
+    mov qword ptr [rdi + r10 * 8], 0
+    lea rdi, [rel txn_link]
+    mov qword ptr [rdi + r10 * 8], 0
+    inc qword ptr [rel txn_count]
+    mov r10, [rel event_count]
+    lea rdi, [rel event_kinds]
+    mov qword ptr [rdi + r10 * 8], 3
+    lea rdi, [rel event_txn_ids]
+    mov rax, [rel txn_count]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel event_amounts]
+    mov rax, [rel fv_amount_val]
+    mov [rdi + r10 * 8], rax
+    inc qword ptr [rel event_count]
+    mov rax, [rel txn_count]
+    dec rax
+    mov rbx, rax
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_txn_id_prefix]
+    mov ecx, json_txn_id_prefix_len
+    call copy_to_r14
+    lea rax, [rbx + 1]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_object_acctid]
+    mov ecx, json_txn_object_acctid_len
+    call copy_to_r14
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_amount_mid]
+    mov ecx, json_txn_amount_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_type_mid]
+    mov ecx, json_txn_type_mid_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_type_deposit]
+    mov ecx, json_txn_type_deposit_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_reqid_mid]
+    mov ecx, json_txn_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+hd_missing_amount:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_amount]
+    mov r10d, msg_missing_amount_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hd_missing_currency:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_currency]
+    mov r10d, msg_missing_currency_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hd_bad_currency:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_invalid_currency]
+    mov r10d, msg_invalid_currency_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hd_invalid:
+    jmp respond_400
+hd_table_full:
+    jmp ca_table_full
+
+# --- POST /v1/transactions/txn_x86_N/reverse ---
+handle_reverse:
+    mov rax, [rel move_txn]
+    cmp rax, 1
+    jb respond_txn_not_found
+    cmp rax, [rel txn_count]
+    ja respond_txn_not_found
+    mov rbx, rax
+    dec rbx
+    mov [rel move_txn], rbx
+    lea rdi, [rel txn_flags]
+    cmp qword ptr [rdi + rbx * 8], 0
+    jne hr_already_reversed
+    lea rdi, [rel txn_types]
+    mov rax, [rdi + rbx * 8]
+    cmp rax, 2
+    je hr_do_transfer
+    cmp rax, 3
+    je hr_do_withdrawal
+    cmp rax, 5
+    je hr_do_deposit
+    jmp hr_cannot_reverse
+hr_do_transfer:
+    mov rax, [rel txn_count]
+    cmp rax, TXN_TABLE_CAP
+    jae hr_table_full
+    mov rax, [rel event_count]
+    cmp rax, EVENT_TABLE_CAP
+    jae hr_table_full
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    mov [rel move_amount], rax
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rdi + rbx * 8]
+    mov [rel move_src], rax
+    lea rdi, [rel txn_extra]
+    mov rax, [rdi + rbx * 8]
+    mov [rel move_dst], rax
+    mov rax, [rel move_dst]
+    dec rax
+    mov r10, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + r10 * 8]
+    cmp rax, [rel move_amount]
+    jb hr_insufficient
+    mov rcx, [rel move_amount]
+    sub rax, rcx
+    mov [rdi + r10 * 8], rax
+    mov rax, [rel move_src]
+    dec rax
+    mov r10, rax
+    mov rax, [rdi + r10 * 8]
+    add rax, rcx
+    mov [rdi + r10 * 8], rax
+    jmp hr_commit
+hr_do_withdrawal:
+    mov rax, [rel txn_count]
+    cmp rax, TXN_TABLE_CAP
+    jae hr_table_full
+    mov rax, [rel event_count]
+    cmp rax, EVENT_TABLE_CAP
+    jae hr_table_full
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    mov [rel move_amount], rax
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rdi + rbx * 8]
+    mov [rel move_src], rax
+    mov qword ptr [rel move_dst], 0
+    mov rax, [rel move_src]
+    dec rax
+    mov r10, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + r10 * 8]
+    mov rcx, [rel move_amount]
+    add rax, rcx
+    mov [rdi + r10 * 8], rax
+    jmp hr_commit
+hr_do_deposit:
+    mov rax, [rel txn_count]
+    cmp rax, TXN_TABLE_CAP
+    jae hr_table_full
+    mov rax, [rel event_count]
+    cmp rax, EVENT_TABLE_CAP
+    jae hr_table_full
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    mov [rel move_amount], rax
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rdi + rbx * 8]
+    mov [rel move_src], rax
+    mov qword ptr [rel move_dst], 0
+    mov rax, [rel move_src]
+    dec rax
+    mov r10, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + r10 * 8]
+    cmp rax, [rel move_amount]
+    jb hr_insufficient
+    mov rcx, [rel move_amount]
+    sub rax, rcx
+    mov [rdi + r10 * 8], rax
+    jmp hr_commit
+hr_commit:
+    mov rbx, [rel move_txn]
+    lea rdi, [rel txn_flags]
+    mov qword ptr [rdi + rbx * 8], 1
+    mov r10, [rel txn_count]
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rel move_src]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_extra]
+    mov rax, [rel move_dst]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_amounts]
+    mov rax, [rel move_amount]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_types]
+    mov qword ptr [rdi + r10 * 8], 4
+    lea rdi, [rel txn_flags]
+    mov qword ptr [rdi + r10 * 8], 0
+    lea rdi, [rel txn_link]
+    mov rax, [rel move_txn]
+    inc rax
+    mov [rdi + r10 * 8], rax
+    inc qword ptr [rel txn_count]
+    mov r10, [rel event_count]
+    lea rdi, [rel event_kinds]
+    mov qword ptr [rdi + r10 * 8], 4
+    lea rdi, [rel event_txn_ids]
+    mov rax, [rel txn_count]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel event_amounts]
+    mov rax, [rel move_amount]
+    mov [rdi + r10 * 8], rax
+    inc qword ptr [rel event_count]
+    mov rax, [rel txn_count]
+    dec rax
+    mov rbx, rax
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_txn_id_prefix]
+    mov ecx, json_txn_id_prefix_len
+    call copy_to_r14
+    lea rax, [rbx + 1]
+    call append_u64_to_r14
+    lea rsi, [rel json_rev_txnid_mid]
+    mov ecx, json_rev_txnid_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_link]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_amount_mid]
+    mov ecx, json_txn_amount_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_type_mid]
+    mov ecx, json_txn_type_mid_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_type_reversal]
+    mov ecx, json_txn_type_reversal_len
+    call copy_to_r14
+    lea rsi, [rel json_txn_reqid_mid]
+    mov ecx, json_txn_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+hr_already_reversed:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_already_reversed]
+    mov r10d, msg_already_reversed_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hr_cannot_reverse:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_cannot_reverse]
+    mov r10d, msg_cannot_reverse_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+hr_insufficient:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_insufficient]
+    mov r8d, code_insufficient_len
+    lea r9, [rel msg_insufficient]
+    mov r10d, msg_insufficient_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_402]
+    mov ecx, status_402_len
+    call send_json
+    ret
+hr_table_full:
+    jmp ca_table_full
+
+# append_event_item: RBX=0-based event index, R14=json ptr. Appends item without request_id.
+append_event_item:
+    push rbx
+    push r15
+    lea rsi, [rel json_evt_id_prefix]
+    mov ecx, json_evt_id_prefix_len
+    call copy_to_r14
+    pop r15
+    push r15
+    mov rax, rbx
+    inc rax
+    call append_u64_to_r14
+    lea rsi, [rel json_evt_object_type]
+    mov ecx, json_evt_object_type_len
+    call copy_to_r14
+    pop r15
+    push r15
+    lea rdi, [rel event_kinds]
+    mov rax, [rdi + rbx * 8]
+    cmp rax, 1
+    je aei_kind_transfer
+    cmp rax, 2
+    je aei_kind_withdrawal
+    cmp rax, 3
+    je aei_kind_deposit
+    lea rsi, [rel evt_kind_reversal]
+    mov ecx, evt_kind_reversal_len
+    call copy_to_r14
+    jmp aei_after_kind
+aei_kind_transfer:
+    lea rsi, [rel evt_kind_transfer]
+    mov ecx, evt_kind_transfer_len
+    call copy_to_r14
+    jmp aei_after_kind
+aei_kind_withdrawal:
+    lea rsi, [rel evt_kind_withdrawal]
+    mov ecx, evt_kind_withdrawal_len
+    call copy_to_r14
+    jmp aei_after_kind
+aei_kind_deposit:
+    lea rsi, [rel evt_kind_deposit]
+    mov ecx, evt_kind_deposit_len
+    call copy_to_r14
+    jmp aei_after_kind
+aei_after_kind:
+    lea rsi, [rel json_evt_txn_mid]
+    mov ecx, json_evt_txn_mid_len
+    call copy_to_r14
+    pop r15
+    push r15
+    lea rdi, [rel event_txn_ids]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_evt_amount_mid]
+    mov ecx, json_evt_amount_mid_len
+    call copy_to_r14
+    pop r15
+    push r15
+    lea rdi, [rel event_amounts]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_evt_currency_mid]
+    mov ecx, json_evt_currency_mid_len
+    call copy_to_r14
+    pop r15
+    pop rbx
+    ret
+
+# --- GET /v1/events/evt_x86_N ---
+retrieve_event:
+    lea rsi, [rbx + get_events_prefix_len]
+    mov r8, rbx
+    add r8, [rel request_len]
+    xor rax, rax
+    xor r10d, r10d
+revt_digits:
+    cmp rsi, r8
+    jae revt_digits_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb revt_digits_done
+    cmp dl, '9'
+    ja revt_digits_done
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    inc r10
+    jmp revt_digits
+revt_digits_done:
+    test r10, r10
+    jz respond_404
+    cmp rsi, r8
+    jae revt_path_ok
+    cmp byte ptr [rsi], ' '
+    jne respond_404
+revt_path_ok:
+    cmp rax, 1
+    jb revt_not_found
+    cmp rax, [rel event_count]
+    ja revt_not_found
+    mov rbx, rax
+    dec rbx
+    lea r14, [rel json_buf]
+    call append_event_item
+    lea rsi, [rel json_evt_reqid_mid]
+    mov ecx, json_evt_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+revt_not_found:
+    lea rsi, [rel type_notfound]
+    mov ecx, type_notfound_len
+    lea rdx, [rel code_notfound]
+    mov r8d, code_notfound_len
+    lea r9, [rel msg_event_not_found]
+    mov r10d, msg_event_not_found_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_404]
+    mov ecx, status_404_len
+    call send_json
+    ret
+
+# --- GET /v1/events (list) ---
+list_events:
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_events_list_prefix]
+    mov ecx, json_events_list_prefix_len
+    call copy_to_r14
+    mov r15, [rel event_count]
+    xor ebx, ebx
+    test r15, r15
+    jz list_events_done
+list_events_loop:
+    cmp rbx, r15
+    jae list_events_done
+    push r15
+    call append_event_item
+    pop r15
+    push r15
+    push rbx
+    lea rsi, [rel json_rbrace]
+    mov ecx, json_rbrace_len
+    call copy_to_r14
+    pop rbx
+    pop r15
+    inc rbx
+    cmp rbx, r15
+    jae list_events_done
+    push r15
+    push rbx
+    lea rsi, [rel json_comma]
+    mov ecx, json_comma_len
+    call copy_to_r14
+    pop rbx
+    pop r15
+    jmp list_events_loop
+list_events_done:
+    lea rsi, [rel json_events_list_mid]
+    mov ecx, json_events_list_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
     call send_json
     ret
 

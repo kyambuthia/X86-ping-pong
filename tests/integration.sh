@@ -577,4 +577,395 @@ assert_header_contains 'Request-Id: req_x86_'
 assert_body_contains '"request_id":"req_x86_'
 printf '%s\n' 'ok - transaction response carries request ID'
 
+# --- Transfers / Withdrawals / Reversals / Events tests ---
+# State so far: acct_x86_1 balance 0, acct_x86_2 balance 0,
+# txn_x86_1/2 account_opened, no events.
+
+# Minimal deposit to fund money-movement happy paths.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=5000&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+assert_status 200
+assert_body_contains '"id":"txn_x86_3"'
+assert_body_contains '"type":"deposit"'
+assert_body_contains '"amount":5000'
+assert_header_contains 'Request-Id: req_x86_'
+assert_body_contains '"request_id":"req_x86_'
+printf '%s\n' 'ok - deposit funds account 1'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":5000'
+printf '%s\n' 'ok - deposit credits balance'
+
+# Deposit rejected: missing amount, no mutation.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+assert_status 400
+assert_body_contains 'missing required field: amount'
+printf '%s\n' 'ok - deposit missing amount'
+
+# Deposit rejected: invalid currency, no mutation.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=eur' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+assert_status 400
+assert_body_contains 'currency must be usd'
+printf '%s\n' 'ok - deposit invalid currency'
+
+# Deposit rejected: nonexistent account.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_99/deposit'
+assert_status 404
+assert_body_contains 'resource not found'
+printf '%s\n' 'ok - deposit nonexistent account'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":5000'
+printf '%s\n' 'ok - rejected deposits leave balance unchanged'
+
+# Send happy path: debit sender, credit recipient atomically.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_2&amount=1000&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 200
+assert_body_contains '"id":"txn_x86_4"'
+assert_body_contains '"sender_id":"acct_x86_1"'
+assert_body_contains '"recipient_id":"acct_x86_2"'
+assert_body_contains '"amount":1000'
+assert_body_contains '"type":"transfer"'
+assert_header_contains 'Request-Id: req_x86_'
+assert_body_contains '"request_id":"req_x86_'
+printf '%s\n' 'ok - send transfers funds'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":4000'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+assert_status 200
+assert_body_contains '"balance":1000'
+printf '%s\n' 'ok - send updates both balances'
+
+# Send rejected: self-send, no mutation.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_1&amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 400
+assert_body_contains 'cannot send to self'
+printf '%s\n' 'ok - self-send rejected'
+
+# Send rejected: missing to_account_id.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 400
+assert_body_contains 'missing required field: to_account_id'
+printf '%s\n' 'ok - send missing recipient'
+
+# Send rejected: zero amount.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_2&amount=0&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - send zero amount rejected'
+
+# Send rejected: duplicate field.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_2&amount=100&amount=200&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - send duplicate field rejected'
+
+# Send rejected: unknown field.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_2&amount=100&currency=usd&extra=1' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - send unknown field rejected'
+
+# Send rejected: nonexistent recipient.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_99&amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 404
+assert_body_contains 'resource not found'
+printf '%s\n' 'ok - send nonexistent recipient'
+
+# Send rejected: insufficient funds, atomic (both balances unchanged, no new txn).
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_2&amount=99999999&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 402
+assert_body_contains 'insufficient funds'
+printf '%s\n' 'ok - send insufficient funds'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":4000'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+assert_status 200
+assert_body_contains '"balance":1000'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_5'
+assert_status 404
+assert_body_contains 'transaction not found'
+printf '%s\n' 'ok - rejected sends are atomic'
+
+# Withdraw happy path.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=500&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+assert_status 200
+assert_body_contains '"id":"txn_x86_5"'
+assert_body_contains '"type":"withdrawal"'
+assert_body_contains '"amount":500'
+assert_header_contains 'Request-Id: req_x86_'
+printf '%s\n' 'ok - withdraw debits account'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":3500'
+printf '%s\n' 'ok - withdraw updates balance'
+
+# Withdraw rejected: insufficient funds, atomic.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=99999999&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+assert_status 402
+assert_body_contains 'insufficient funds'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":3500'
+printf '%s\n' 'ok - withdraw insufficient funds atomic'
+
+# Withdraw rejected: invalid amount.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=0&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - withdraw invalid amount'
+
+# Ledger retrieval for new money-movement types.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_4'
+assert_status 200
+assert_body_contains '"type":"transfer"'
+assert_body_contains '"sender_id":"acct_x86_1"'
+assert_body_contains '"recipient_id":"acct_x86_2"'
+printf '%s\n' 'ok - retrieve transfer entry'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_5'
+assert_status 200
+assert_body_contains '"type":"withdrawal"'
+assert_body_contains '"amount":500'
+printf '%s\n' 'ok - retrieve withdrawal entry'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_3'
+assert_status 200
+assert_body_contains '"type":"deposit"'
+printf '%s\n' 'ok - retrieve deposit entry'
+
+# Reverse happy path (transfer): restores both balances.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -X POST \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_4/reverse'
+assert_status 200
+assert_body_contains '"id":"txn_x86_6"'
+assert_body_contains '"type":"reversal"'
+assert_body_contains '"transaction_id":"txn_x86_4"'
+assert_header_contains 'Request-Id: req_x86_'
+printf '%s\n' 'ok - reverse transfer restores balances'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":4500'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+assert_status 200
+assert_body_contains '"balance":0'
+printf '%s\n' 'ok - reversal updates both balances'
+
+# Reverse rejected: already reversed, no mutation.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -X POST \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_4/reverse'
+assert_status 400
+assert_body_contains 'transaction already reversed'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":4500'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+assert_status 200
+assert_body_contains '"balance":0'
+printf '%s\n' 'ok - double reversal rejected atomically'
+
+# Reverse rejected: account_opened cannot be reversed.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -X POST \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_1/reverse'
+assert_status 400
+assert_body_contains 'cannot reverse this transaction'
+printf '%s\n' 'ok - account_opened reversal rejected'
+
+# Reverse rejected: unknown transaction, no mutation.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -X POST \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_99/reverse'
+assert_status 404
+assert_body_contains 'transaction not found'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":4500'
+printf '%s\n' 'ok - unknown reversal rejected atomically'
+
+# Reverse happy path (withdrawal): credits account.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -X POST \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_5/reverse'
+assert_status 200
+assert_body_contains '"id":"txn_x86_7"'
+assert_body_contains '"transaction_id":"txn_x86_5"'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":5000'
+printf '%s\n' 'ok - reverse withdrawal restores balance'
+
+# Events: single retrieval and list.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/events/evt_x86_1'
+assert_status 200
+assert_body_contains '"id":"evt_x86_1"'
+assert_body_contains '"object":"event"'
+assert_body_contains 'deposit.created'
+assert_body_contains '"transaction_id":"txn_x86_3"'
+assert_header_contains 'Request-Id: req_x86_'
+printf '%s\n' 'ok - retrieve single event'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/events/evt_x86_99'
+assert_status 404
+assert_body_contains 'event not found'
+printf '%s\n' 'ok - unknown event returns 404'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/events'
+assert_status 200
+assert_body_contains '"object":"list"'
+assert_body_contains 'transfer.created'
+assert_body_contains 'withdrawal.created'
+assert_body_contains 'reversal.created'
+assert_header_contains 'Request-Id: req_x86_'
+assert_body_contains '"request_id":"req_x86_'
+printf '%s\n' 'ok - list events'
+
+# Ledger capacity: fill txn table via account creation (7 used, cap 16).
+i=3
+while [ "$i" -le 11 ]; do
+    request \
+        -H 'Authorization: Bearer x86_test_key' \
+        -H 'Content-Type: application/x-www-form-urlencoded' \
+        --data 'user_id=user_x86_1&currency=usd' \
+        'http://127.0.0.1:4242/v1/accounts'
+    assert_status 201
+    i=$((i + 1))
+done
+printf '%s\n' 'ok - filled ledger table'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_2&amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 507
+assert_body_contains 'table full'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":5000'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+assert_status 200
+assert_body_contains '"balance":0'
+printf '%s\n' 'ok - ledger capacity rejected atomically'
+
 printf '%s\n' 'all integration tests passed'
