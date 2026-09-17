@@ -441,6 +441,15 @@ assert_status 409
 assert_body_contains 'email already taken'
 printf '%s\n' 'ok - duplicate email rejected'
 
+# POST /v1/users - duplicate form field
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'email=duplicate-field@example.com&email=other@example.com' \
+    'http://127.0.0.1:4242/v1/users'
+assert_status 400
+printf '%s\n' 'ok - duplicate user field rejected'
+
 # POST /v1/accounts - create account for user 1
 request \
     -H 'Authorization: Bearer x86_test_key' \
@@ -465,6 +474,23 @@ assert_status 201
 assert_body_contains '"id":"acct_x86_2"'
 assert_body_contains '"user_id":"user_x86_2"'
 printf '%s\n' 'ok - create account 2'
+
+# POST /v1/accounts - duplicate and unknown form fields
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'user_id=user_x86_1&user_id=user_x86_2&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts'
+assert_status 400
+printf '%s\n' 'ok - duplicate account field rejected'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'user_id=user_x86_1&currency=usd&extra=1' \
+    'http://127.0.0.1:4242/v1/accounts'
+assert_status 400
+printf '%s\n' 'ok - unknown account field rejected'
 
 # POST /v1/accounts - missing user_id
 request \
@@ -553,6 +579,15 @@ assert_body_contains '"account_id":"acct_x86_1"'
 assert_body_contains '"amount":0'
 assert_body_contains '"type":"account_opened"'
 printf '%s\n' 'ok - retrieve ledger entry'
+
+# Account creation must preserve the second opening transaction.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_2'
+assert_status 200
+assert_body_contains '"account_id":"acct_x86_2"'
+assert_body_contains '"type":"account_opened"'
+printf '%s\n' 'ok - opening transactions preserve slots'
 
 # GET /v1/transactions/txn_x86_99 - non-existent transaction
 request \
@@ -975,6 +1010,44 @@ while [ "$i" -le 11 ]; do
     i=$((i + 1))
 done
 printf '%s\n' 'ok - filled ledger table'
+
+# Domain validation must run before ledger-capacity validation.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_2&amount=99999999&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 402
+assert_body_contains 'insufficient funds'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=99999999&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+assert_status 402
+assert_body_contains 'insufficient funds'
+printf '%s\n' 'ok - domain errors precede ledger capacity'
+
+# Account creation must fail before mutating when the ledger is full.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'user_id=user_x86_1&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts'
+assert_status 507
+assert_body_contains 'table full'
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_12'
+assert_status 404
+printf '%s\n' 'ok - account creation capacity is atomic'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_17'
+assert_status 404
+assert_body_contains 'transaction not found'
+printf '%s\n' 'ok - transaction retrieval stays within capacity'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \

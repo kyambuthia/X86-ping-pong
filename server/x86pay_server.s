@@ -889,6 +889,12 @@ move_amount:
     .quad 0
 move_txn:
     .quad 0
+cu_email_seen:
+    .quad 0
+ca_user_id_seen:
+    .quad 0
+ca_currency_seen:
+    .quad 0
 fv_to_seen:
     .quad 0
 fv_amount_seen:
@@ -2523,6 +2529,7 @@ cu_ct_done:
     ja cu_email_too_long
 
     # Reject unknown form fields (only email= allowed).
+    mov qword ptr [rel cu_email_seen], 0
     mov r14, [rel body_ptr]
     mov r15, [rel body_end]
 cu_scan_fields:
@@ -2546,7 +2553,12 @@ cu_field_end:
     call find_sequence
     pop rdx
     cmp rax, r14
-    je cu_field_next
+    jne cu_unknown_field
+    cmp qword ptr [rel cu_email_seen], 0
+    jne cu_unknown_field
+    mov qword ptr [rel cu_email_seen], 1
+    jmp cu_field_next
+cu_unknown_field:
     # Unknown field.
     jmp respond_400
 cu_field_next:
@@ -2876,9 +2888,64 @@ ca_uid_done:
     cmp byte ptr [rsi + 2], 'd'
     jne ca_bad_currency
 
+    # Reject duplicate and unknown form fields.
+    mov qword ptr [rel ca_user_id_seen], 0
+    mov qword ptr [rel ca_currency_seen], 0
+    mov r14, [rel body_ptr]
+    mov r15, [rel body_end]
+ca_scan_fields:
+    cmp r14, r15
+    je ca_field_check_done
+    mov rdx, r14
+ca_find_sep:
+    cmp rdx, r15
+    jae ca_field_end
+    cmp byte ptr [rdx], '&'
+    je ca_field_end
+    inc rdx
+    jmp ca_find_sep
+ca_field_end:
+    mov rsi, r14
+    lea rdi, [rel user_id_key]
+    mov rcx, rdx
+    sub rcx, r14
+    push rdx
+    mov edx, user_id_key_len
+    call find_sequence
+    pop rdx
+    cmp rax, r14
+    jne ca_try_currency_field
+    cmp qword ptr [rel ca_user_id_seen], 0
+    jne respond_400
+    mov qword ptr [rel ca_user_id_seen], 1
+    jmp ca_field_next
+ca_try_currency_field:
+    mov rsi, r14
+    lea rdi, [rel currency_key]
+    mov rcx, rdx
+    sub rcx, r14
+    push rdx
+    mov edx, currency_key_len
+    call find_sequence
+    pop rdx
+    cmp rax, r14
+    jne respond_400
+    cmp qword ptr [rel ca_currency_seen], 0
+    jne respond_400
+    mov qword ptr [rel ca_currency_seen], 1
+ca_field_next:
+    cmp rdx, r15
+    jae ca_field_check_done
+    lea r14, [rdx + 1]
+    jmp ca_scan_fields
+ca_field_check_done:
+
     # Check capacity.
     mov rbx, [rel acct_count]
     cmp rbx, ACCT_TABLE_CAP
+    jae ca_table_full
+    mov r10, [rel txn_count]
+    cmp r10, TXN_TABLE_CAP
     jae ca_table_full
 
     # Store account.
@@ -2892,10 +2959,9 @@ ca_uid_done:
     inc qword ptr [rel acct_count]
 
     # Create ledger entry: txn_x86_N, account=acct_x86_N, amount=0, type=account_opened.
-    mov r10, [rel acct_count]
-    dec r10
+    mov r10, [rel txn_count]
     lea rdi, [rel txn_account_ids]
-    lea rax, [r10 + 1]
+    mov rax, [rel acct_count]
     mov [rdi + r10 * 8], rax
     lea rdi, [rel txn_amounts]
     mov qword ptr [rdi + r10 * 8], 0
@@ -3108,6 +3174,8 @@ retrieve_transaction:
     cmp rax, 1
     jb respond_404
     cmp rax, [rel txn_count]
+    ja respond_txn_not_found
+    cmp rax, TXN_TABLE_CAP
     ja respond_txn_not_found
     mov rbx, rax
     dec rbx
@@ -3735,6 +3803,13 @@ hs_form_done:
     mov rax, [rel move_src]
     cmp rax, [rel fv_to_num]
     je hs_self_send
+    mov rax, [rel move_src]
+    dec rax
+    mov rbx, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + rbx * 8]
+    cmp rax, [rel fv_amount_val]
+    jb hs_insufficient
     mov rax, [rel txn_count]
     cmp rax, TXN_TABLE_CAP
     jae hs_table_full
@@ -3746,8 +3821,6 @@ hs_form_done:
     mov rbx, rax
     lea rdi, [rel acct_balances]
     mov rax, [rdi + rbx * 8]
-    cmp rax, [rel fv_amount_val]
-    jb hs_insufficient
     mov rcx, [rel fv_amount_val]
     sub rax, rcx
     mov [rdi + rbx * 8], rax
@@ -4035,6 +4108,13 @@ hw_form_done:
     jb respond_404
     cmp rax, [rel acct_count]
     ja respond_404
+    mov rax, [rel move_src]
+    dec rax
+    mov rbx, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + rbx * 8]
+    cmp rax, [rel fv_amount_val]
+    jb hw_insufficient
     mov rax, [rel txn_count]
     cmp rax, TXN_TABLE_CAP
     jae hw_table_full
@@ -4046,8 +4126,6 @@ hw_form_done:
     mov rbx, rax
     lea rdi, [rel acct_balances]
     mov rax, [rdi + rbx * 8]
-    cmp rax, [rel fv_amount_val]
-    jb hw_insufficient
     mov rcx, [rel fv_amount_val]
     sub rax, rcx
     mov [rdi + rbx * 8], rax
@@ -4454,12 +4532,6 @@ handle_reverse:
     je hr_do_deposit
     jmp hr_cannot_reverse
 hr_do_transfer:
-    mov rax, [rel txn_count]
-    cmp rax, TXN_TABLE_CAP
-    jae hr_table_full
-    mov rax, [rel event_count]
-    cmp rax, EVENT_TABLE_CAP
-    jae hr_table_full
     lea rdi, [rel txn_amounts]
     mov rax, [rdi + rbx * 8]
     mov [rel move_amount], rax
@@ -4476,6 +4548,17 @@ hr_do_transfer:
     mov rax, [rdi + r10 * 8]
     cmp rax, [rel move_amount]
     jb hr_insufficient
+    mov rax, [rel txn_count]
+    cmp rax, TXN_TABLE_CAP
+    jae hr_table_full
+    mov rax, [rel event_count]
+    cmp rax, EVENT_TABLE_CAP
+    jae hr_table_full
+    mov rax, [rel move_dst]
+    dec rax
+    mov r10, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + r10 * 8]
     mov rcx, [rel move_amount]
     sub rax, rcx
     mov [rdi + r10 * 8], rax
@@ -4510,12 +4593,6 @@ hr_do_withdrawal:
     mov [rdi + r10 * 8], rax
     jmp hr_commit
 hr_do_deposit:
-    mov rax, [rel txn_count]
-    cmp rax, TXN_TABLE_CAP
-    jae hr_table_full
-    mov rax, [rel event_count]
-    cmp rax, EVENT_TABLE_CAP
-    jae hr_table_full
     lea rdi, [rel txn_amounts]
     mov rax, [rdi + rbx * 8]
     mov [rel move_amount], rax
@@ -4530,6 +4607,17 @@ hr_do_deposit:
     mov rax, [rdi + r10 * 8]
     cmp rax, [rel move_amount]
     jb hr_insufficient
+    mov rax, [rel txn_count]
+    cmp rax, TXN_TABLE_CAP
+    jae hr_table_full
+    mov rax, [rel event_count]
+    cmp rax, EVENT_TABLE_CAP
+    jae hr_table_full
+    mov rax, [rel move_src]
+    dec rax
+    mov r10, rax
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + r10 * 8]
     mov rcx, [rel move_amount]
     sub rax, rcx
     mov [rdi + r10 * 8], rax
