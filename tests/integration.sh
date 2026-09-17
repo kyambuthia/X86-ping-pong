@@ -82,6 +82,25 @@ assert_header_contains() {
     fi
 }
 
+extract_id() {
+    sed -n 's/.*"id":"\([^"]*\)".*/\1/p' "$1"
+}
+
+assert_uid() {
+    if ! printf '%s\n' "$2" | grep -Eq "^$1_[0-9a-f]{16}$"; then
+        printf 'expected %s UID, got %s\n' "$1" "$2" >&2
+        return 1
+    fi
+}
+
+uid_for_slot() {
+    uid_prefix=${1%??}
+    uid_last=${1#"$uid_prefix"}
+    uid_byte=$(printf '%d' "0x$uid_last")
+    uid_base=$((uid_byte & 224))
+    printf '%s%02x' "$uid_prefix" "$((uid_base | $2))"
+}
+
 raw_request() {
     python3 - "$@" <<'PY' >"$TMP_DIR/raw.resp"
 import socket
@@ -103,14 +122,16 @@ PY
 
 ./build/x86pay_client 2000 usd >"$TMP_DIR/client.out"
 grep -Fq 'HTTP/1.1 200 OK' "$TMP_DIR/client.out"
-grep -Fq '"id":"pi_x86_1"' "$TMP_DIR/client.out"
+grep -Eq '"id":"pi_[0-9a-f]{16}"' "$TMP_DIR/client.out"
+PI1=$(extract_id "$TMP_DIR/client.out")
+assert_uid pi "$PI1"
 printf '%s\n' 'ok - assembly client creates a PaymentIntent'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/payment_intents/pi_x86_1'
+    "http://127.0.0.1:4242/v1/payment_intents/$PI1"
 assert_status 200
-assert_body_contains '"id":"pi_x86_1"'
+assert_body_contains "\"id\":\"$PI1\""
 printf '%s\n' 'ok - PaymentIntent retrieval'
 
 request \
@@ -120,7 +141,9 @@ request \
     --data 'amount=3000&currency=eur' \
     'http://127.0.0.1:4242/v1/payment_intents'
 assert_status 200
-assert_body_contains '"id":"pi_x86_2"'
+PI2=$(extract_id "$TMP_DIR/body")
+assert_uid pi "$PI2"
+assert_body_contains "\"id\":\"$PI2\""
 assert_body_contains '"amount":3000'
 printf '%s\n' 'ok - PaymentIntent creation'
 
@@ -131,7 +154,7 @@ request \
     --data 'amount=3000&currency=eur' \
     'http://127.0.0.1:4242/v1/payment_intents'
 assert_status 200
-assert_body_contains '"id":"pi_x86_2"'
+assert_body_contains "\"id\":\"$PI2\""
 printf '%s\n' 'ok - idempotency replay'
 
 request \
@@ -221,7 +244,9 @@ request \
     --data 'amount=1500&currency=gbp' \
     'http://127.0.0.1:4242/v1/payment_intents'
 assert_status 200
-assert_body_contains '"id":"pi_x86_3"'
+PI3=$(extract_id "$TMP_DIR/body")
+assert_uid pi "$PI3"
+assert_body_contains "\"id\":\"$PI3\""
 assert_body_contains '"amount":1500'
 printf '%s\n' 'ok - multiple independent keys (key-a)'
 
@@ -232,7 +257,9 @@ request \
     --data 'amount=2500&currency=jpy' \
     'http://127.0.0.1:4242/v1/payment_intents'
 assert_status 200
-assert_body_contains '"id":"pi_x86_4"'
+PI4=$(extract_id "$TMP_DIR/body")
+assert_uid pi "$PI4"
+assert_body_contains "\"id\":\"$PI4\""
 assert_body_contains '"amount":2500'
 printf '%s\n' 'ok - multiple independent keys (key-b)'
 
@@ -243,7 +270,7 @@ request \
     --data 'amount=1500&currency=gbp' \
     'http://127.0.0.1:4242/v1/payment_intents'
 assert_status 200
-assert_body_contains '"id":"pi_x86_3"'
+assert_body_contains "\"id\":\"$PI3\""
 printf '%s\n' 'ok - cross-replay returns original result'
 
 request \
@@ -323,9 +350,9 @@ printf '%s\n' 'ok - structured 401 error'
 
 request \
     -H 'authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/payment_intents/pi_x86_1'
+    "http://127.0.0.1:4242/v1/payment_intents/$PI1"
 assert_status 200
-assert_body_contains '"id":"pi_x86_1"'
+assert_body_contains "\"id\":\"$PI1\""
 printf '%s\n' 'ok - case-insensitive authorization'
 
 request \
@@ -340,7 +367,7 @@ printf '%s\n' 'ok - case-insensitive content type'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/payment_intents/pi_x86_1'
+    "http://127.0.0.1:4242/v1/payment_intents/$PI1"
 assert_status 400
 assert_body_contains '"type":"invalid_request_error"'
 assert_body_contains '"code":"invalid_request"'
@@ -349,7 +376,7 @@ printf '%s\n' 'ok - duplicate authorization rejected'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'authorization: Bearer wrong_key' \
-    'http://127.0.0.1:4242/v1/payment_intents/pi_x86_1'
+    "http://127.0.0.1:4242/v1/payment_intents/$PI1"
 assert_status 400
 assert_body_contains 'invalid request'
 printf '%s\n' 'ok - conflicting authorization rejected'
@@ -405,7 +432,8 @@ request \
     --data 'email=alice@example.com' \
     'http://127.0.0.1:4242/v1/users'
 assert_status 201
-assert_body_contains '"id":"user_x86_1"'
+USER1=$(extract_id "$TMP_DIR/body")
+assert_uid usr "$USER1"
 assert_body_contains '"object":"user"'
 assert_body_contains '"email":"alice@example.com"'
 printf '%s\n' 'ok - create user 1'
@@ -417,9 +445,15 @@ request \
     --data 'email=bob@example.com' \
     'http://127.0.0.1:4242/v1/users'
 assert_status 201
-assert_body_contains '"id":"user_x86_2"'
+USER2=$(extract_id "$TMP_DIR/body")
+assert_uid usr "$USER2"
 assert_body_contains '"email":"bob@example.com"'
 printf '%s\n' 'ok - create user 2'
+
+BAD_USER='usr_0000000000000000'
+BAD_ACCT='acct_0000000000000000'
+BAD_TXN='txn_0000000000000000'
+BAD_EVT='evt_0000000000000000'
 
 # POST /v1/users - missing email field
 request \
@@ -454,12 +488,14 @@ printf '%s\n' 'ok - duplicate user field rejected'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'user_id=user_x86_1&currency=usd' \
+    --data "user_id=$USER1&currency=usd" \
     'http://127.0.0.1:4242/v1/accounts'
 assert_status 201
-assert_body_contains '"id":"acct_x86_1"'
+ACCT1=$(extract_id "$TMP_DIR/body")
+assert_uid acct "$ACCT1"
+assert_body_contains "\"id\":\"$ACCT1\""
 assert_body_contains '"object":"account"'
-assert_body_contains '"user_id":"user_x86_1"'
+assert_body_contains "\"user_id\":\"$USER1\""
 assert_body_contains '"currency":"usd"'
 assert_body_contains '"balance":0'
 printf '%s\n' 'ok - create account 1'
@@ -468,18 +504,31 @@ printf '%s\n' 'ok - create account 1'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'user_id=user_x86_2&currency=usd' \
+    --data "user_id=$USER2&currency=usd" \
     'http://127.0.0.1:4242/v1/accounts'
 assert_status 201
-assert_body_contains '"id":"acct_x86_2"'
-assert_body_contains '"user_id":"user_x86_2"'
+ACCT2=$(extract_id "$TMP_DIR/body")
+assert_uid acct "$ACCT2"
+assert_body_contains "\"id\":\"$ACCT2\""
+assert_body_contains "\"user_id\":\"$USER2\""
 printf '%s\n' 'ok - create account 2'
+
+TXN1=$(printf '%s' "$ACCT1" | sed 's/^acct_/txn_/')
+TXN2=$(printf '%s' "$ACCT2" | sed 's/^acct_/txn_/')
+EVT1=$(printf '%s' "$USER1" | sed 's/^usr_/evt_/')
+assert_uid txn "$TXN1"
+assert_uid txn "$TXN2"
+assert_uid evt "$EVT1"
+BAD_USER=$(printf '%s' "$USER1" | sed 's/.$/f/')
+BAD_ACCT=$(printf '%s' "$ACCT1" | sed 's/.$/f/')
+BAD_TXN=$(uid_for_slot "$TXN1" 17)
+BAD_EVT=$(printf '%s' "$EVT1" | sed 's/.$/f/')
 
 # POST /v1/accounts - duplicate and unknown form fields
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'user_id=user_x86_1&user_id=user_x86_2&currency=usd' \
+    --data "user_id=$USER1&user_id=$USER2&currency=usd" \
     'http://127.0.0.1:4242/v1/accounts'
 assert_status 400
 printf '%s\n' 'ok - duplicate account field rejected'
@@ -487,7 +536,7 @@ printf '%s\n' 'ok - duplicate account field rejected'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'user_id=user_x86_1&currency=usd&extra=1' \
+    --data "user_id=$USER1&currency=usd&extra=1" \
     'http://127.0.0.1:4242/v1/accounts'
 assert_status 400
 printf '%s\n' 'ok - unknown account field rejected'
@@ -506,7 +555,7 @@ printf '%s\n' 'ok - account missing user_id'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'user_id=user_x86_1' \
+    --data "user_id=$USER1" \
     'http://127.0.0.1:4242/v1/accounts'
 assert_status 400
 assert_body_contains 'missing required field: currency'
@@ -516,7 +565,7 @@ printf '%s\n' 'ok - account missing currency'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'user_id=user_x86_9&currency=usd' \
+    --data "user_id=$BAD_USER&currency=usd" \
     'http://127.0.0.1:4242/v1/accounts'
 assert_status 404
 assert_body_contains 'user not found'
@@ -526,56 +575,56 @@ printf '%s\n' 'ok - account with invalid user'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'user_id=user_x86_1&currency=eur' \
+    --data "user_id=$USER1&currency=eur" \
     'http://127.0.0.1:4242/v1/accounts'
 assert_status 400
 assert_body_contains 'currency must be usd'
 printf '%s\n' 'ok - account with invalid currency'
 
-# GET /v1/accounts/acct_x86_1 - retrieve account
+# GET /v1/accounts/{account_uid} - retrieve account
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1"
 assert_status 200
-assert_body_contains '"id":"acct_x86_1"'
+assert_body_contains "\"id\":\"$ACCT1\""
 assert_body_contains '"object":"account"'
-assert_body_contains '"user_id":"user_x86_1"'
+assert_body_contains "\"user_id\":\"$USER1\""
 assert_body_contains '"currency":"usd"'
 assert_body_contains '"balance":0'
 printf '%s\n' 'ok - retrieve account'
 
-# GET /v1/accounts/acct_x86_1/balance - retrieve balance
+# GET /v1/accounts/{account_uid}/balance - retrieve balance
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":0'
 printf '%s\n' 'ok - retrieve account balance'
 
-# GET /v1/accounts/acct_x86_99 - non-existent account
+# GET /v1/accounts/{unknown_account_uid} - non-existent account
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_99'
+    "http://127.0.0.1:4242/v1/accounts/$BAD_ACCT"
 assert_status 404
 assert_body_contains 'resource not found'
 printf '%s\n' 'ok - non-existent account returns 404'
 
-# GET /v1/accounts/acct_x86_99/balance - non-existent account balance
+# GET /v1/accounts/{unknown_account_uid}/balance - non-existent account balance
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_99/balance'
+    "http://127.0.0.1:4242/v1/accounts/$BAD_ACCT/balance"
 assert_status 404
 assert_body_contains 'resource not found'
 printf '%s\n' 'ok - non-existent account balance returns 404'
 
-# GET /v1/transactions/txn_x86_1 - retrieve ledger entry (created with account 1)
+# GET /v1/transactions/{transaction_uid} - retrieve ledger entry
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_1'
+    "http://127.0.0.1:4242/v1/transactions/$TXN1"
 assert_status 200
-assert_body_contains '"id":"txn_x86_1"'
+assert_body_contains "\"id\":\"$TXN1\""
 assert_body_contains '"object":"transaction"'
-assert_body_contains '"account_id":"acct_x86_1"'
+assert_body_contains "\"account_id\":\"$ACCT1\""
 assert_body_contains '"amount":0'
 assert_body_contains '"type":"account_opened"'
 printf '%s\n' 'ok - retrieve ledger entry'
@@ -583,16 +632,16 @@ printf '%s\n' 'ok - retrieve ledger entry'
 # Account creation must preserve the second opening transaction.
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_2'
+    "http://127.0.0.1:4242/v1/transactions/$TXN2"
 assert_status 200
-assert_body_contains '"account_id":"acct_x86_2"'
+assert_body_contains "\"account_id\":\"$ACCT2\""
 assert_body_contains '"type":"account_opened"'
 printf '%s\n' 'ok - opening transactions preserve slots'
 
-# GET /v1/transactions/txn_x86_99 - non-existent transaction
+# GET /v1/transactions/{unknown_transaction_uid} - non-existent transaction
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_99'
+    "http://127.0.0.1:4242/v1/transactions/$BAD_TXN"
 assert_status 404
 assert_body_contains 'transaction not found'
 printf '%s\n' 'ok - non-existent transaction returns 404'
@@ -600,21 +649,20 @@ printf '%s\n' 'ok - non-existent transaction returns 404'
 # Verify request IDs on new routes
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1"
 assert_header_contains 'Request-Id: req_x86_'
 assert_body_contains '"request_id":"req_x86_'
 printf '%s\n' 'ok - account response carries request ID'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_1'
+    "http://127.0.0.1:4242/v1/transactions/$TXN1"
 assert_header_contains 'Request-Id: req_x86_'
 assert_body_contains '"request_id":"req_x86_'
 printf '%s\n' 'ok - transaction response carries request ID'
 
 # --- Transfers / Withdrawals / Reversals / Events tests ---
-# State so far: acct_x86_1 balance 0, acct_x86_2 balance 0,
-# txn_x86_1/2 account_opened, no events.
+# State so far: account 1 and 2 have zero balance, with two opening entries.
 
 # Minimal deposit to fund money-movement happy paths.
 request \
@@ -622,9 +670,11 @@ request \
     -H 'Idempotency-Key: deposit-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=5000&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/deposit"
 assert_status 200
-assert_body_contains '"id":"txn_x86_3"'
+TXN3=$(extract_id "$TMP_DIR/body")
+assert_uid txn "$TXN3"
+assert_body_contains "\"id\":\"$TXN3\""
 assert_body_contains '"type":"deposit"'
 assert_body_contains '"amount":5000'
 assert_header_contains 'Request-Id: req_x86_'
@@ -638,9 +688,9 @@ request \
     -H 'Idempotency-Key: deposit-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=5000&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/deposit"
 assert_status 200
-assert_body_contains '"id":"txn_x86_3"'
+assert_body_contains "\"id\":\"$TXN3\""
 assert_body_contains '"type":"deposit"'
 printf '%s\n' 'ok - deposit idempotency replay'
 
@@ -649,21 +699,21 @@ request \
     -H 'Idempotency-Key: deposit-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=6000&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/deposit"
 assert_status 400
 assert_body_contains 'idempotency key reused with different parameters'
 printf '%s\n' 'ok - deposit idempotency conflict'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":5000'
 printf '%s\n' 'ok - deposit credits balance'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1"
 assert_status 200
 assert_body_contains '"balance":5000'
 printf '%s\n' 'ok - account reflects deposit'
@@ -673,7 +723,7 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/deposit"
 assert_status 400
 assert_body_contains 'missing required field: amount'
 printf '%s\n' 'ok - deposit missing amount'
@@ -683,7 +733,7 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=100&currency=eur' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/deposit"
 assert_status 400
 assert_body_contains 'currency must be usd'
 printf '%s\n' 'ok - deposit invalid currency'
@@ -693,7 +743,7 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=100' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/deposit"
 assert_status 400
 assert_body_contains 'missing required field: currency'
 printf '%s\n' 'ok - deposit missing currency'
@@ -703,7 +753,7 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=100&amount=200&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/deposit"
 assert_status 400
 assert_body_contains 'invalid request'
 printf '%s\n' 'ok - deposit duplicate amount'
@@ -713,14 +763,14 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=100&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_99/deposit'
+    "http://127.0.0.1:4242/v1/accounts/$BAD_ACCT/deposit"
 assert_status 404
 assert_body_contains 'resource not found'
 printf '%s\n' 'ok - deposit nonexistent account'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":5000'
 printf '%s\n' 'ok - rejected deposits leave balance unchanged'
@@ -730,12 +780,14 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Idempotency-Key: send-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_2&amount=1000&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$ACCT2&amount=1000&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 200
-assert_body_contains '"id":"txn_x86_4"'
-assert_body_contains '"sender_id":"acct_x86_1"'
-assert_body_contains '"recipient_id":"acct_x86_2"'
+TXN4=$(extract_id "$TMP_DIR/body")
+assert_uid txn "$TXN4"
+assert_body_contains "\"id\":\"$TXN4\""
+assert_body_contains "\"sender_id\":\"$ACCT1\""
+assert_body_contains "\"recipient_id\":\"$ACCT2\""
 assert_body_contains '"amount":1000'
 assert_body_contains '"type":"transfer"'
 assert_header_contains 'Request-Id: req_x86_'
@@ -746,10 +798,10 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Idempotency-Key: send-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_2&amount=1000&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$ACCT2&amount=1000&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 200
-assert_body_contains '"id":"txn_x86_4"'
+assert_body_contains "\"id\":\"$TXN4\""
 assert_body_contains '"type":"transfer"'
 printf '%s\n' 'ok - send idempotency replay'
 
@@ -757,20 +809,20 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Idempotency-Key: send-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_1&amount=1000&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/send'
+    --data "to_account_id=$ACCT1&amount=1000&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT2/send"
 assert_status 400
 assert_body_contains 'idempotency key reused with different parameters'
 printf '%s\n' 'ok - send idempotency account conflict'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":4000'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT2/balance"
 assert_status 200
 assert_body_contains '"balance":1000'
 printf '%s\n' 'ok - send updates both balances'
@@ -779,8 +831,8 @@ printf '%s\n' 'ok - send updates both balances'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_1&amount=100&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$ACCT1&amount=100&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 400
 assert_body_contains 'cannot send to self'
 printf '%s\n' 'ok - self-send rejected'
@@ -790,7 +842,7 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=100&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 400
 assert_body_contains 'missing required field: to_account_id'
 printf '%s\n' 'ok - send missing recipient'
@@ -799,8 +851,8 @@ printf '%s\n' 'ok - send missing recipient'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_2&amount=0&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$ACCT2&amount=0&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 400
 assert_body_contains 'invalid request'
 printf '%s\n' 'ok - send zero amount rejected'
@@ -809,8 +861,8 @@ printf '%s\n' 'ok - send zero amount rejected'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_2&amount=100&amount=200&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$ACCT2&amount=100&amount=200&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 400
 assert_body_contains 'invalid request'
 printf '%s\n' 'ok - send duplicate field rejected'
@@ -819,8 +871,8 @@ printf '%s\n' 'ok - send duplicate field rejected'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_2&amount=100&currency=usd&extra=1' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$ACCT2&amount=100&currency=usd&extra=1" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 400
 assert_body_contains 'invalid request'
 printf '%s\n' 'ok - send unknown field rejected'
@@ -829,8 +881,8 @@ printf '%s\n' 'ok - send unknown field rejected'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_99&amount=100&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$BAD_ACCT&amount=100&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 404
 assert_body_contains 'resource not found'
 printf '%s\n' 'ok - send nonexistent recipient'
@@ -839,25 +891,25 @@ printf '%s\n' 'ok - send nonexistent recipient'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_2&amount=99999999&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$ACCT2&amount=99999999&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 402
 assert_body_contains 'insufficient funds'
 printf '%s\n' 'ok - send insufficient funds'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":4000'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT2/balance"
 assert_status 200
 assert_body_contains '"balance":1000'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_5'
+    "http://127.0.0.1:4242/v1/transactions/$BAD_TXN"
 assert_status 404
 assert_body_contains 'transaction not found'
 printf '%s\n' 'ok - rejected sends are atomic'
@@ -868,9 +920,11 @@ request \
     -H 'Idempotency-Key: withdraw-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=500&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/withdraw"
 assert_status 200
-assert_body_contains '"id":"txn_x86_5"'
+TXN5=$(extract_id "$TMP_DIR/body")
+assert_uid txn "$TXN5"
+assert_body_contains "\"id\":\"$TXN5\""
 assert_body_contains '"type":"withdrawal"'
 assert_body_contains '"amount":500'
 assert_header_contains 'Request-Id: req_x86_'
@@ -881,15 +935,15 @@ request \
     -H 'Idempotency-Key: withdraw-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=500&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/withdraw"
 assert_status 200
-assert_body_contains '"id":"txn_x86_5"'
+assert_body_contains "\"id\":\"$TXN5\""
 assert_body_contains '"type":"withdrawal"'
 printf '%s\n' 'ok - withdraw idempotency replay'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":3500'
 printf '%s\n' 'ok - withdraw updates balance'
@@ -899,12 +953,12 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=99999999&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/withdraw"
 assert_status 402
 assert_body_contains 'insufficient funds'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":3500'
 printf '%s\n' 'ok - withdraw insufficient funds atomic'
@@ -914,7 +968,7 @@ request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=0&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/withdraw"
 assert_status 400
 assert_body_contains 'invalid request'
 printf '%s\n' 'ok - withdraw invalid amount'
@@ -922,16 +976,16 @@ printf '%s\n' 'ok - withdraw invalid amount'
 # Ledger retrieval for new money-movement types.
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_4'
+    "http://127.0.0.1:4242/v1/transactions/$TXN4"
 assert_status 200
 assert_body_contains '"type":"transfer"'
-assert_body_contains '"sender_id":"acct_x86_1"'
-assert_body_contains '"recipient_id":"acct_x86_2"'
+assert_body_contains "\"sender_id\":\"$ACCT1\""
+assert_body_contains "\"recipient_id\":\"$ACCT2\""
 printf '%s\n' 'ok - retrieve transfer entry'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_5'
+    "http://127.0.0.1:4242/v1/transactions/$TXN5"
 assert_status 200
 assert_body_contains '"type":"withdrawal"'
 assert_body_contains '"amount":500'
@@ -939,7 +993,7 @@ printf '%s\n' 'ok - retrieve withdrawal entry'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_3'
+    "http://127.0.0.1:4242/v1/transactions/$TXN3"
 assert_status 200
 assert_body_contains '"type":"deposit"'
 printf '%s\n' 'ok - retrieve deposit entry'
@@ -948,22 +1002,24 @@ printf '%s\n' 'ok - retrieve deposit entry'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -X POST \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_4/reverse'
+    "http://127.0.0.1:4242/v1/transactions/$TXN4/reverse"
 assert_status 200
-assert_body_contains '"id":"txn_x86_6"'
+TXN6=$(extract_id "$TMP_DIR/body")
+assert_uid txn "$TXN6"
+assert_body_contains "\"id\":\"$TXN6\""
 assert_body_contains '"type":"reversal"'
-assert_body_contains '"transaction_id":"txn_x86_4"'
+assert_body_contains "\"transaction_id\":\"$TXN4\""
 assert_header_contains 'Request-Id: req_x86_'
 printf '%s\n' 'ok - reverse transfer restores balances'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":4500'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT2/balance"
 assert_status 200
 assert_body_contains '"balance":0'
 printf '%s\n' 'ok - reversal updates both balances'
@@ -972,17 +1028,17 @@ printf '%s\n' 'ok - reversal updates both balances'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -X POST \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_4/reverse'
+    "http://127.0.0.1:4242/v1/transactions/$TXN4/reverse"
 assert_status 400
 assert_body_contains 'transaction already reversed'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":4500'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT2/balance"
 assert_status 200
 assert_body_contains '"balance":0'
 printf '%s\n' 'ok - double reversal rejected atomically'
@@ -991,7 +1047,7 @@ printf '%s\n' 'ok - double reversal rejected atomically'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -X POST \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_1/reverse'
+    "http://127.0.0.1:4242/v1/transactions/$TXN1/reverse"
 assert_status 400
 assert_body_contains 'cannot reverse this transaction'
 printf '%s\n' 'ok - account_opened reversal rejected'
@@ -1000,12 +1056,12 @@ printf '%s\n' 'ok - account_opened reversal rejected'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -X POST \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_99/reverse'
+    "http://127.0.0.1:4242/v1/transactions/$BAD_TXN/reverse"
 assert_status 404
 assert_body_contains 'transaction not found'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":4500'
 printf '%s\n' 'ok - unknown reversal rejected atomically'
@@ -1014,13 +1070,15 @@ printf '%s\n' 'ok - unknown reversal rejected atomically'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -X POST \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_5/reverse'
+    "http://127.0.0.1:4242/v1/transactions/$TXN5/reverse"
 assert_status 200
-assert_body_contains '"id":"txn_x86_7"'
-assert_body_contains '"transaction_id":"txn_x86_5"'
+TXN7=$(extract_id "$TMP_DIR/body")
+assert_uid txn "$TXN7"
+assert_body_contains "\"id\":\"$TXN7\""
+assert_body_contains "\"transaction_id\":\"$TXN5\""
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":5000'
 printf '%s\n' 'ok - reverse withdrawal restores balance'
@@ -1028,18 +1086,21 @@ printf '%s\n' 'ok - reverse withdrawal restores balance'
 # Events: single retrieval and list.
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/events/evt_x86_1'
+    "http://127.0.0.1:4242/v1/events/$EVT1"
 assert_status 200
-assert_body_contains '"id":"evt_x86_1"'
+EVENT1=$(extract_id "$TMP_DIR/body")
+assert_uid evt "$EVENT1"
+assert_body_contains "\"id\":\"$EVENT1\""
+assert_body_contains "\"id\":\"$EVT1\""
 assert_body_contains '"object":"event"'
 assert_body_contains 'deposit.created'
-assert_body_contains '"transaction_id":"txn_x86_3"'
+assert_body_contains "\"transaction_id\":\"$TXN3\""
 assert_header_contains 'Request-Id: req_x86_'
 printf '%s\n' 'ok - retrieve single event'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/events/evt_x86_99'
+    "http://127.0.0.1:4242/v1/events/$BAD_EVT"
 assert_status 404
 assert_body_contains 'event not found'
 printf '%s\n' 'ok - unknown event returns 404'
@@ -1062,7 +1123,7 @@ while [ "$i" -le 11 ]; do
     request \
         -H 'Authorization: Bearer x86_test_key' \
         -H 'Content-Type: application/x-www-form-urlencoded' \
-        --data 'user_id=user_x86_1&currency=usd' \
+        --data "user_id=$USER1&currency=usd" \
         'http://127.0.0.1:4242/v1/accounts'
     assert_status 201
     i=$((i + 1))
@@ -1073,15 +1134,15 @@ printf '%s\n' 'ok - filled ledger table'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_2&amount=99999999&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$ACCT2&amount=99999999&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 402
 assert_body_contains 'insufficient funds'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=99999999&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/withdraw"
 assert_status 402
 assert_body_contains 'insufficient funds'
 printf '%s\n' 'ok - domain errors precede ledger capacity'
@@ -1090,19 +1151,19 @@ printf '%s\n' 'ok - domain errors precede ledger capacity'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'user_id=user_x86_1&currency=usd' \
+        --data "user_id=$USER1&currency=usd" \
     'http://127.0.0.1:4242/v1/accounts'
 assert_status 507
 assert_body_contains 'table full'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_12'
+    "http://127.0.0.1:4242/v1/accounts/$BAD_ACCT"
 assert_status 404
 printf '%s\n' 'ok - account creation capacity is atomic'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/transactions/txn_x86_17'
+    "http://127.0.0.1:4242/v1/transactions/$BAD_TXN"
 assert_status 404
 assert_body_contains 'transaction not found'
 printf '%s\n' 'ok - transaction retrieval stays within capacity'
@@ -1110,18 +1171,18 @@ printf '%s\n' 'ok - transaction retrieval stays within capacity'
 request \
     -H 'Authorization: Bearer x86_test_key' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
-    --data 'to_account_id=acct_x86_2&amount=100&currency=usd' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+    --data "to_account_id=$ACCT2&amount=100&currency=usd" \
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/send"
 assert_status 507
 assert_body_contains 'table full'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT1/balance"
 assert_status 200
 assert_body_contains '"balance":5000'
 request \
     -H 'Authorization: Bearer x86_test_key' \
-    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/balance'
+    "http://127.0.0.1:4242/v1/accounts/$ACCT2/balance"
 assert_status 200
 assert_body_contains '"balance":0'
 printf '%s\n' 'ok - ledger capacity rejected atomically'

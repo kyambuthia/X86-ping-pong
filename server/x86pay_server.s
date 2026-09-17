@@ -13,6 +13,9 @@ server_addr:
 reuse_value:
     .long 1
 
+uid_hex_chars:
+    .ascii "0123456789abcdef"
+
 # timeval for SO_RCVTIMEO/SO_SNDTIMEO: 5s conservative request/response timeout.
 socket_timeout:
     .quad 5
@@ -41,7 +44,7 @@ post_route_end:
 .equ post_route_len, post_route_end - post_route
 
 get_route:
-    .ascii "GET /v1/payment_intents/pi_x86_"
+    .ascii "GET /v1/payment_intents/pi_"
 get_route_end:
 .equ get_route_len, get_route_end - get_route
 
@@ -86,7 +89,7 @@ http_suffix_end:
 .equ http_suffix_len, http_suffix_end - http_suffix
 
 json_id_prefix:
-    .ascii "{\"id\":\"pi_x86_"
+    .ascii "{\"id\":\"pi_"
 json_id_prefix_end:
 .equ json_id_prefix_len, json_id_prefix_end - json_id_prefix
 
@@ -112,6 +115,7 @@ json_status_suffix_end:
 .equ IDEM_CURRENCY_OFF, 272
 .equ IDEM_CONTEXT_OFF, 280
 .equ IDEM_SEQ_OFF, 288
+.equ UID_HEX_LEN, 16
 
 json_status_mid:
     .ascii "\",\"status\":\"requires_payment_method\",\"request_id\":\"req_x86_"
@@ -346,12 +350,12 @@ post_accounts_route_end:
 .equ post_accounts_route_len, post_accounts_route_end - post_accounts_route
 
 get_accounts_route:
-    .ascii "GET /v1/accounts/acct_x86_"
+    .ascii "GET /v1/accounts/acct_"
 get_accounts_route_end:
 .equ get_accounts_route_len, get_accounts_route_end - get_accounts_route
 
 get_txns_route:
-    .ascii "GET /v1/transactions/txn_x86_"
+    .ascii "GET /v1/transactions/txn_"
 get_txns_route_end:
 .equ get_txns_route_len, get_txns_route_end - get_txns_route
 
@@ -387,7 +391,7 @@ user_id_key_end:
 # --- JSON user prefixes ---
 
 json_user_id_prefix:
-    .ascii "{\"id\":\"user_x86_"
+    .ascii "{\"id\":\"usr_"
 json_user_id_prefix_end:
 .equ json_user_id_prefix_len, json_user_id_prefix_end - json_user_id_prefix
 
@@ -404,12 +408,12 @@ json_user_email_reqid_mid_end:
 # --- JSON account prefixes ---
 
 json_acct_id_prefix:
-    .ascii "{\"id\":\"acct_x86_"
+    .ascii "{\"id\":\"acct_"
 json_acct_id_prefix_end:
 .equ json_acct_id_prefix_len, json_acct_id_prefix_end - json_acct_id_prefix
 
 json_acct_object_userid:
-    .ascii "\",\"object\":\"account\",\"user_id\":\"user_x86_"
+    .ascii "\",\"object\":\"account\",\"user_id\":\"usr_"
 json_acct_object_userid_end:
 .equ json_acct_object_userid_len, json_acct_object_userid_end - json_acct_object_userid
 
@@ -431,12 +435,12 @@ json_acct_reqid_mid_end:
 # --- JSON transaction prefixes ---
 
 json_txn_id_prefix:
-    .ascii "{\"id\":\"txn_x86_"
+    .ascii "{\"id\":\"txn_"
 json_txn_id_prefix_end:
 .equ json_txn_id_prefix_len, json_txn_id_prefix_end - json_txn_id_prefix
 
 json_txn_object_acctid:
-    .ascii "\",\"object\":\"transaction\",\"account_id\":\"acct_x86_"
+    .ascii "\",\"object\":\"transaction\",\"account_id\":\"acct_"
 json_txn_object_acctid_end:
 .equ json_txn_object_acctid_len, json_txn_object_acctid_end - json_txn_object_acctid
 
@@ -530,10 +534,10 @@ msg_txn_not_found_end:
 .equ msg_txn_not_found_len, msg_txn_not_found_end - msg_txn_not_found
 
 # --- User ID prefix for validation ---
-user_x86_prefix:
-    .ascii "user_x86_"
-user_x86_prefix_end:
-.equ user_x86_prefix_len, user_x86_prefix_end - user_x86_prefix
+user_uid_prefix:
+    .ascii "usr_"
+user_uid_prefix_end:
+.equ user_uid_prefix_len, user_uid_prefix_end - user_uid_prefix
 
 # --- Status 201/409 ---
 status_201:
@@ -554,7 +558,7 @@ status_402_end:
 # --- Transfers / Withdrawals / Reversals / Events routes ---
 
 post_acct_prefix:
-    .ascii "POST /v1/accounts/acct_x86_"
+    .ascii "POST /v1/accounts/acct_"
 post_acct_prefix_end:
 .equ post_acct_prefix_len, post_acct_prefix_end - post_acct_prefix
 
@@ -574,7 +578,7 @@ deposit_suffix_end:
 .equ deposit_suffix_len, deposit_suffix_end - deposit_suffix
 
 post_txn_prefix:
-    .ascii "POST /v1/transactions/txn_x86_"
+    .ascii "POST /v1/transactions/txn_"
 post_txn_prefix_end:
 .equ post_txn_prefix_len, post_txn_prefix_end - post_txn_prefix
 
@@ -589,7 +593,7 @@ get_events_list_route_end:
 .equ get_events_list_route_len, get_events_list_route_end - get_events_list_route
 
 get_events_prefix:
-    .ascii "GET /v1/events/evt_x86_"
+    .ascii "GET /v1/events/evt_"
 get_events_prefix_end:
 .equ get_events_prefix_len, get_events_prefix_end - get_events_prefix
 
@@ -600,10 +604,10 @@ to_account_id_key:
 to_account_id_key_end:
 .equ to_account_id_key_len, to_account_id_key_end - to_account_id_key
 
-acct_x86_prefix:
-    .ascii "acct_x86_"
-acct_x86_prefix_end:
-.equ acct_x86_prefix_len, acct_x86_prefix_end - acct_x86_prefix
+acct_uid_prefix:
+    .ascii "acct_"
+acct_uid_prefix_end:
+.equ acct_uid_prefix_len, acct_uid_prefix_end - acct_uid_prefix
 
 # --- Txn type names ---
 
@@ -630,26 +634,26 @@ json_txn_type_reversal_end:
 # --- Transfer JSON fragments ---
 
 json_transfer_sender_mid:
-    .ascii "\",\"object\":\"transaction\",\"sender_id\":\"acct_x86_"
+    .ascii "\",\"object\":\"transaction\",\"sender_id\":\"acct_"
 json_transfer_sender_mid_end:
 .equ json_transfer_sender_mid_len, json_transfer_sender_mid_end - json_transfer_sender_mid
 
 json_transfer_recipient_mid:
-    .ascii "\",\"recipient_id\":\"acct_x86_"
+    .ascii "\",\"recipient_id\":\"acct_"
 json_transfer_recipient_mid_end:
 .equ json_transfer_recipient_mid_len, json_transfer_recipient_mid_end - json_transfer_recipient_mid
 
 # --- Reversal JSON fragments ---
 
 json_rev_txnid_mid:
-    .ascii "\",\"object\":\"transaction\",\"transaction_id\":\"txn_x86_"
+    .ascii "\",\"object\":\"transaction\",\"transaction_id\":\"txn_"
 json_rev_txnid_mid_end:
 .equ json_rev_txnid_mid_len, json_rev_txnid_mid_end - json_rev_txnid_mid
 
 # --- Event JSON fragments ---
 
 json_evt_id_prefix:
-    .ascii "{\"id\":\"evt_x86_"
+    .ascii "{\"id\":\"evt_"
 json_evt_id_prefix_end:
 .equ json_evt_id_prefix_len, json_evt_id_prefix_end - json_evt_id_prefix
 
@@ -659,7 +663,7 @@ json_evt_object_type_end:
 .equ json_evt_object_type_len, json_evt_object_type_end - json_evt_object_type
 
 json_evt_txn_mid:
-    .ascii "\",\"transaction_id\":\"txn_x86_"
+    .ascii "\",\"transaction_id\":\"txn_"
 json_evt_txn_mid_end:
 .equ json_evt_txn_mid_len, json_evt_txn_mid_end - json_evt_txn_mid
 
@@ -781,6 +785,8 @@ current_idem:
     .zero 256
 
 request_len:
+    .quad 0
+uid_seed:
     .quad 0
 header_len:
     .quad 0
@@ -921,6 +927,30 @@ fv_amount_val:
 .global _start
 
 _start:
+    # Seed opaque resource IDs once per process. The low five bits are reserved
+    # for the bounded table slot; the remaining bits identify this boot.
+    mov eax, 318            # getrandom(uid_seed, 8, 0)
+    lea rdi, [rel uid_seed]
+    mov esi, 8
+    xor edx, edx
+    syscall
+    cmp rax, 8
+    je uid_seed_mask
+    rdtsc
+    shl rdx, 32
+    or rax, rdx
+    mov [rel uid_seed], rax
+uid_seed_mask:
+    mov rax, [rel uid_seed]
+    and rax, -32
+    jnz uid_seed_ready
+    mov rax, 0x6a09e667f3bcc908
+    mov [rel uid_seed], rax
+uid_seed_ready:
+    mov rax, [rel uid_seed]
+    and rax, -32
+    mov [rel uid_seed], rax
+
     # Ignore SIGPIPE so a peer that closes early cannot terminate the server.
     mov eax, 13             # rt_sigaction(SIGPIPE, &act, NULL, 8)
     mov edi, 13
@@ -1288,7 +1318,7 @@ auth_trim_done:
     cmp rax, rbx
     je create_intent
 
-    # GET /v1/payment_intents/pi_x86_<number>
+    # GET /v1/payment_intents/pi_<uid>
     mov rsi, rbx
     mov rcx, [rel request_len]
     lea rdi, [rel get_route]
@@ -1315,7 +1345,7 @@ auth_trim_done:
     cmp rax, rbx
     je create_account
 
-    # GET /v1/accounts/acct_x86_<id>[/balance]
+    # GET /v1/accounts/acct_<uid>[/balance]
     mov rsi, rbx
     mov rcx, [rel request_len]
     lea rdi, [rel get_accounts_route]
@@ -1324,7 +1354,7 @@ auth_trim_done:
     cmp rax, rbx
     je route_get_account
 
-    # GET /v1/transactions/txn_x86_<id>
+    # GET /v1/transactions/txn_<uid>
     mov rsi, rbx
     mov rcx, [rel request_len]
     lea rdi, [rel get_txns_route]
@@ -1333,7 +1363,7 @@ auth_trim_done:
     cmp rax, rbx
     je retrieve_transaction
 
-    # POST /v1/accounts/acct_x86_N/send|withdraw|deposit
+    # POST /v1/accounts/acct_<uid>/send|withdraw|deposit
     mov rsi, rbx
     mov rcx, [rel request_len]
     lea rdi, [rel post_acct_prefix]
@@ -1342,7 +1372,7 @@ auth_trim_done:
     cmp rax, rbx
     je route_post_account_money
 
-    # POST /v1/transactions/txn_x86_N/reverse
+    # POST /v1/transactions/txn_<uid>/reverse
     mov rsi, rbx
     mov rcx, [rel request_len]
     lea rdi, [rel post_txn_prefix]
@@ -1351,7 +1381,7 @@ auth_trim_done:
     cmp rax, rbx
     je route_post_txn_reverse
 
-    # GET /v1/events/evt_x86_N
+    # GET /v1/events/evt_<uid>
     mov rsi, rbx
     mov rcx, [rel request_len]
     lea rdi, [rel get_events_prefix]
@@ -1522,34 +1552,14 @@ retrieve_intent:
     lea rsi, [rbx + get_route_len]
     mov r8, rbx
     add r8, [rel request_len]
-    xor rax, rax
-    xor r10d, r10d
-
-parse_id_digits:
-    cmp rsi, r8
-    jae retrieve_id_done
-    movzx edx, byte ptr [rsi]
-    cmp dl, '0'
-    jb retrieve_id_done
-    cmp dl, '9'
-    ja retrieve_id_done
-    imul rax, rax, 10
-    sub edx, '0'
-    add rax, rdx
-    inc rsi
-    inc r10
-    jmp parse_id_digits
-
-retrieve_id_done:
-    test r10, r10
+    call decode_uid_token
+    test rax, rax
     jz respond_404
     cmp rsi, r8
     jae id_path_ended
     cmp byte ptr [rsi], ' '
     jne respond_404
 id_path_ended:
-    cmp rax, 1
-    jb respond_404
     cmp rax, [rel intent_count]
     ja respond_404
     call send_intent_response
@@ -1952,7 +1962,7 @@ build_intent_json:
     mov ecx, json_id_prefix_len
     call copy_to_r14
     mov rax, [rel response_seq]
-    call append_u64_to_r14
+    call append_uid_to_r14
 
     lea rsi, [rel json_object_amount]
     mov ecx, json_object_amount_len
@@ -2091,6 +2101,24 @@ append_digits_done:
     mov rdi, r14
     rep movsb
     mov r14, rdi
+    ret
+
+# append_uid_to_r14: append the 16-character opaque UID token for slot RAX.
+# The public token combines the per-process seed with the private table slot.
+append_uid_to_r14:
+    or rax, [rel uid_seed]
+    mov r10d, UID_HEX_LEN
+    lea rdi, [rel uid_hex_chars]
+append_uid_loop:
+    mov rcx, rax
+    shr rcx, 60
+    and ecx, 0xf
+    mov dl, byte ptr [rdi + rcx]
+    mov byte ptr [r14], dl
+    inc r14
+    shl rax, 4
+    dec r10
+    jnz append_uid_loop
     ret
 
 buffers_equal:
@@ -2293,76 +2321,78 @@ write_all_done:
 
 # --- Users / Accounts / Ledger handlers ---
 
-# extract_user_id: extracts numeric user ID from URL after "user_x86_" prefix.
-# RSI = pointer to first char after prefix. Returns RAX=number, RSI=next char.
+# decode_uid_token: parse a 16-character hex UID token at RSI and return the
+# private table slot in RAX. R8 is the end of the containing request/value.
+# Returns zero for malformed, wrong-boot, or zero-slot tokens; RSI advances on
+# success so callers can validate route suffixes.
+decode_uid_token:
+    xor rax, rax
+    xor r10d, r10d
+decode_uid_loop:
+    cmp r10, UID_HEX_LEN
+    jae decode_uid_done
+    cmp rsi, r8
+    jae decode_uid_bad
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb decode_uid_alpha
+    cmp dl, '9'
+    ja decode_uid_alpha
+    sub edx, '0'
+    jmp decode_uid_nibble
+decode_uid_alpha:
+    cmp dl, 'a'
+    jb decode_uid_bad
+    cmp dl, 'f'
+    ja decode_uid_bad
+    sub edx, 'a' - 10
+decode_uid_nibble:
+    shl rax, 4
+    or rax, rdx
+    inc rsi
+    inc r10
+    jmp decode_uid_loop
+decode_uid_done:
+    mov rcx, rax
+    and rcx, -32
+    cmp rcx, [rel uid_seed]
+    jne decode_uid_bad
+    and rax, 31
+    test rax, rax
+    jz decode_uid_bad
+    ret
+decode_uid_bad:
+    xor eax, eax
+    ret
+
+# Extractors validate the public prefix in the route dispatcher, then decode
+# the token. They return zero on malformed input; callers own the response and
+# must not fall through after a failed decode.
 extract_user_id:
-    xor rax, rax
-    xor r10d, r10d
-extract_user_id_digits:
-    cmp rsi, r8
-    jae extract_user_id_done
-    movzx edx, byte ptr [rsi]
-    cmp dl, '0'
-    jb extract_user_id_done
-    cmp dl, '9'
-    ja extract_user_id_done
-    imul rax, rax, 10
-    sub edx, '0'
-    add rax, rdx
-    inc rsi
-    inc r10
-    jmp extract_user_id_digits
-extract_user_id_done:
-    test r10, r10
-    jz respond_404
+    call decode_uid_token
+    test rax, rax
+    jz extract_user_bad
+    ret
+extract_user_bad:
+    xor eax, eax
     ret
 
-# extract_acct_id: extracts numeric account ID from URL after "acct_x86_" prefix.
-# RSI = pointer to first char after prefix. Returns RAX=number, RSI=next char.
 extract_acct_id:
-    xor rax, rax
-    xor r10d, r10d
-extract_acct_id_digits:
-    cmp rsi, r8
-    jae extract_acct_id_done
-    movzx edx, byte ptr [rsi]
-    cmp dl, '0'
-    jb extract_acct_id_done
-    cmp dl, '9'
-    ja extract_acct_id_done
-    imul rax, rax, 10
-    sub edx, '0'
-    add rax, rdx
-    inc rsi
-    inc r10
-    jmp extract_acct_id_digits
-extract_acct_id_done:
-    test r10, r10
-    jz respond_404
+    call decode_uid_token
+    test rax, rax
+    jz extract_acct_bad
+    ret
+extract_acct_bad:
+    xor eax, eax
     ret
 
-# extract_txn_id: extracts numeric transaction ID from URL after "txn_x86_" prefix.
-# RSI = pointer to first char after prefix. Returns RAX=number, RSI=next char.
 extract_txn_id:
-    xor rax, rax
-    xor r10d, r10d
-extract_txn_id_digits:
-    cmp rsi, r8
-    jae extract_txn_id_done
-    movzx edx, byte ptr [rsi]
-    cmp dl, '0'
-    jb extract_txn_id_done
-    cmp dl, '9'
-    ja extract_txn_id_done
-    imul rax, rax, 10
-    sub edx, '0'
-    add rax, rdx
-    inc rsi
-    inc r10
-    jmp extract_txn_id_digits
-extract_txn_id_done:
-    test r10, r10
-    jz respond_404
+    call decode_uid_token
+    test rax, rax
+    jz extract_txn_bad
+    ret
+extract_txn_bad:
+    xor eax, eax
     ret
 
 # parse_form_value: parse form body for key=<value>.
@@ -2452,12 +2482,14 @@ parse_form_value_bad:
     xor eax, eax
     ret
 
-# --- Route: GET /v1/accounts/acct_x86_N[/balance] ---
+# --- Route: GET /v1/accounts/acct_<uid>[/balance] ---
 route_get_account:
     lea rsi, [rbx + get_accounts_route_len]
     mov r8, rbx
     add r8, [rel request_len]
     call extract_acct_id
+    test rax, rax
+    jz respond_404
     cmp rax, 1
     jb respond_404
     cmp rax, [rel acct_count]
@@ -2696,13 +2728,13 @@ cu_copy_email:
 cu_email_copied:
     inc qword ptr [rel user_count]
 
-    # Build JSON: {"id":"user_x86_N","object":"user","email":"...","request_id":"req_x86_N"}
+    # Build JSON with an opaque user UID.
     lea r14, [rel json_buf]
     lea rsi, [rel json_user_id_prefix]
     mov ecx, json_user_id_prefix_len
     call copy_to_r14
     mov rax, [rel user_count]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_user_object_email]
     mov ecx, json_user_object_email_len
     call copy_to_r14
@@ -2880,41 +2912,22 @@ ca_ct_done:
     call parse_form_value
     test eax, eax
     jz ca_missing_user_id
-    # Validate user_id = user_x86_N.
-    cmp qword ptr [rel form_value_len], 10
-    jb ca_bad_user_id
-    cmp qword ptr [rel form_value_len], 11
-    ja ca_bad_user_id
+    # Validate user_id = usr_<16 lowercase hex characters>.
+    cmp qword ptr [rel form_value_len], user_uid_prefix_len + UID_HEX_LEN
+    jne ca_bad_user_id
     lea rsi, [rel form_value_buf]
-    lea rdi, [rel user_x86_prefix]
-    mov rcx, user_x86_prefix_len
+    lea rdi, [rel user_uid_prefix]
+    mov rcx, user_uid_prefix_len
     call buffers_equal
     test eax, eax
     jz ca_bad_user_id
-    # Extract user number (1-2 digits after prefix).
+    # Decode the opaque user UID to its private table slot.
     lea rsi, [rel form_value_buf]
-    add rsi, user_x86_prefix_len
-    xor rax, rax
-    xor ecx, ecx
-ca_uid_digits:
-    cmp ecx, 2
-    jae ca_uid_done
-    movzx edx, byte ptr [rsi]
-    cmp dl, '0'
-    jb ca_uid_done
-    cmp dl, '9'
-    ja ca_uid_done
-    imul rax, rax, 10
-    sub edx, '0'
-    add rax, rdx
-    inc rsi
-    inc ecx
-    jmp ca_uid_digits
-ca_uid_done:
-    test ecx, ecx
+    add rsi, user_uid_prefix_len
+    lea r8, [rsi + UID_HEX_LEN]
+    call decode_uid_token
+    test rax, rax
     jz ca_bad_user_id
-    cmp rax, 1
-    jb ca_bad_user_id
     cmp rax, [rel user_count]
     ja ca_bad_user_id
     mov [rel user_number], rax
@@ -3006,7 +3019,7 @@ ca_field_check_done:
     mov qword ptr [rdi + rbx * 8], 0
     inc qword ptr [rel acct_count]
 
-    # Create ledger entry: txn_x86_N, account=acct_x86_N, amount=0, type=account_opened.
+    # Create ledger entry: txn_<uid>, account=acct_<uid>, amount=0, type=account_opened.
     mov r10, [rel txn_count]
     lea rdi, [rel txn_account_ids]
     mov rax, [rel acct_count]
@@ -3017,18 +3030,18 @@ ca_field_check_done:
     mov qword ptr [rdi + r10 * 8], TXN_TYPE_OPENED
     inc qword ptr [rel txn_count]
 
-    # Build JSON: {"id":"acct_x86_N","object":"account","user_id":"user_x86_M","currency":"usd","balance":0,"request_id":"req_x86_N"}
+    # Build JSON with opaque account and user UIDs.
     lea r14, [rel json_buf]
     lea rsi, [rel json_acct_id_prefix]
     mov ecx, json_acct_id_prefix_len
     call copy_to_r14
     mov rax, [rel acct_count]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_acct_object_userid]
     mov ecx, json_acct_object_userid_len
     call copy_to_r14
     mov rax, [rel user_number]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_acct_currency_mid]
     mov ecx, json_acct_currency_mid_len
     call copy_to_r14
@@ -3134,9 +3147,9 @@ ca_table_full:
     call send_json
     ret
 
-# --- GET /v1/accounts/acct_x86_N ---
+# --- GET /v1/accounts/acct_<uid> ---
 retrieve_account:
-    # Build JSON: {"id":"acct_x86_N","object":"account","user_id":"user_x86_M","currency":"usd","balance":0,"request_id":"req_x86_N"}
+    # Build JSON with opaque account and user UIDs.
     mov rax, [rel account_id]
     dec rax
     mov rbx, rax
@@ -3145,13 +3158,13 @@ retrieve_account:
     mov ecx, json_acct_id_prefix_len
     call copy_to_r14
     mov rax, [rel account_id]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_acct_object_userid]
     mov ecx, json_acct_object_userid_len
     call copy_to_r14
     lea rdi, [rel acct_user_ids]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_acct_currency_mid]
     mov ecx, json_acct_currency_mid_len
     call copy_to_r14
@@ -3183,7 +3196,7 @@ retrieve_account:
     call send_json
     ret
 
-# --- GET /v1/accounts/acct_x86_N/balance ---
+# --- GET /v1/accounts/acct_<uid>/balance ---
 retrieve_account_balance:
     mov rax, [rel account_id]
     dec rax
@@ -3213,7 +3226,7 @@ retrieve_account_balance:
     call send_json
     ret
 
-# --- GET /v1/transactions/txn_x86_N ---
+# --- GET /v1/transactions/txn_<uid> ---
 retrieve_transaction:
     lea rsi, [rbx + get_txns_route_len]
     mov r8, rbx
@@ -3243,13 +3256,13 @@ retrieve_transaction:
     mov ecx, json_txn_id_prefix_len
     call copy_to_r14
     lea rax, [rbx + 1]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_object_acctid]
     mov ecx, json_txn_object_acctid_len
     call copy_to_r14
     lea rdi, [rel txn_account_ids]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_amount_mid]
     mov ecx, json_txn_amount_mid_len
     call copy_to_r14
@@ -3295,19 +3308,19 @@ retrieve_txn_transfer:
     mov ecx, json_txn_id_prefix_len
     call copy_to_r14
     lea rax, [rbx + 1]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_transfer_sender_mid]
     mov ecx, json_transfer_sender_mid_len
     call copy_to_r14
     lea rdi, [rel txn_account_ids]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_transfer_recipient_mid]
     mov ecx, json_transfer_recipient_mid_len
     call copy_to_r14
     lea rdi, [rel txn_extra]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_amount_mid]
     mov ecx, json_txn_amount_mid_len
     call copy_to_r14
@@ -3344,13 +3357,13 @@ retrieve_txn_withdrawal:
     mov ecx, json_txn_id_prefix_len
     call copy_to_r14
     lea rax, [rbx + 1]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_object_acctid]
     mov ecx, json_txn_object_acctid_len
     call copy_to_r14
     lea rdi, [rel txn_account_ids]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_amount_mid]
     mov ecx, json_txn_amount_mid_len
     call copy_to_r14
@@ -3387,13 +3400,13 @@ retrieve_txn_deposit:
     mov ecx, json_txn_id_prefix_len
     call copy_to_r14
     lea rax, [rbx + 1]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_object_acctid]
     mov ecx, json_txn_object_acctid_len
     call copy_to_r14
     lea rdi, [rel txn_account_ids]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_amount_mid]
     mov ecx, json_txn_amount_mid_len
     call copy_to_r14
@@ -3430,13 +3443,13 @@ retrieve_txn_reversal:
     mov ecx, json_txn_id_prefix_len
     call copy_to_r14
     lea rax, [rbx + 1]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_rev_txnid_mid]
     mov ecx, json_rev_txnid_mid_len
     call copy_to_r14
     lea rdi, [rel txn_link]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_amount_mid]
     mov ecx, json_txn_amount_mid_len
     call copy_to_r14
@@ -3574,29 +3587,13 @@ cfct_bad:
     xor eax, eax
     ret
 
-# --- Route: POST /v1/accounts/acct_x86_N/send|withdraw|deposit ---
+# --- Route: POST /v1/accounts/acct_<uid>/send|withdraw|deposit ---
 route_post_account_money:
     lea rsi, [rbx + post_acct_prefix_len]
     mov r8, rbx
     add r8, [rel request_len]
-    xor rax, rax
-    xor r10d, r10d
-rpam_digit_loop:
-    cmp rsi, r8
-    jae rpam_digits_done
-    movzx edx, byte ptr [rsi]
-    cmp dl, '0'
-    jb rpam_digits_done
-    cmp dl, '9'
-    ja rpam_digits_done
-    imul rax, rax, 10
-    sub edx, '0'
-    add rax, rdx
-    inc rsi
-    inc r10
-    jmp rpam_digit_loop
-rpam_digits_done:
-    test r10, r10
+    call extract_acct_id
+    test rax, rax
     jz respond_404
     mov [rel move_src], rax
     mov r15, rsi
@@ -3630,29 +3627,13 @@ rpam_digits_done:
     je handle_deposit
     jmp respond_404
 
-# --- Route: POST /v1/transactions/txn_x86_N/reverse ---
+# --- Route: POST /v1/transactions/txn_<uid>/reverse ---
 route_post_txn_reverse:
     lea rsi, [rbx + post_txn_prefix_len]
     mov r8, rbx
     add r8, [rel request_len]
-    xor rax, rax
-    xor r10d, r10d
-rptr_digit_loop:
-    cmp rsi, r8
-    jae rptr_digits_done
-    movzx edx, byte ptr [rsi]
-    cmp dl, '0'
-    jb rptr_digits_done
-    cmp dl, '9'
-    ja rptr_digits_done
-    imul rax, rax, 10
-    sub edx, '0'
-    add rax, rdx
-    inc rsi
-    inc r10
-    jmp rptr_digit_loop
-rptr_digits_done:
-    test r10, r10
+    call extract_txn_id
+    test rax, rax
     jz respond_404
     mov [rel move_txn], rax
     mov r15, rsi
@@ -3666,7 +3647,7 @@ rptr_digits_done:
     je handle_reverse
     jmp respond_404
 
-# --- POST /v1/accounts/acct_x86_N/send ---
+# --- POST /v1/accounts/acct_<uid>/send ---
 handle_send:
     call check_form_ct
     test eax, eax
@@ -3731,44 +3712,22 @@ hs_parse_to:
     mov r8, [rel form_token_end]
     mov rcx, r8
     sub rcx, rsi
-    cmp rcx, acct_x86_prefix_len + 1
-    jb hs_invalid
-    cmp rcx, acct_x86_prefix_len + 8
-    ja hs_invalid
+    cmp rcx, acct_uid_prefix_len + UID_HEX_LEN
+    jne hs_invalid
     push rsi
     push rcx
-    lea rdi, [rel acct_x86_prefix]
-    mov rcx, acct_x86_prefix_len
+    lea rdi, [rel acct_uid_prefix]
+    mov rcx, acct_uid_prefix_len
     call buffers_equal
     pop rcx
     pop rsi
     test eax, eax
     jz hs_invalid
-    lea rsi, [rsi + acct_x86_prefix_len]
-    mov r8, [rel form_token_end]
-    xor rax, rax
-    xor ecx, ecx
-hs_to_digits:
-    cmp rsi, r8
-    jae hs_to_digits_done
-    movzx edx, byte ptr [rsi]
-    cmp dl, '0'
-    jb hs_invalid
-    cmp dl, '9'
-    ja hs_invalid
-    imul rax, rax, 10
-    sub edx, '0'
-    add rax, rdx
-    inc rsi
-    inc ecx
-    cmp ecx, 8
-    ja hs_invalid
-    jmp hs_to_digits
-hs_to_digits_done:
-    test ecx, ecx
+    lea rsi, [rsi + acct_uid_prefix_len]
+    lea r8, [rsi + UID_HEX_LEN]
+    call decode_uid_token
+    test rax, rax
     jz hs_invalid
-    cmp rsi, r8
-    jne hs_invalid
     mov [rel fv_to_num], rax
     mov qword ptr [rel fv_to_seen], 1
     jmp hs_token_next
@@ -3946,17 +3905,17 @@ hs_idem_new:
     mov ecx, json_txn_id_prefix_len
     call copy_to_r14
     mov rax, [rel txn_count]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_transfer_sender_mid]
     mov ecx, json_transfer_sender_mid_len
     call copy_to_r14
     mov rax, [rel move_src]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_transfer_recipient_mid]
     mov ecx, json_transfer_recipient_mid_len
     call copy_to_r14
     mov rax, [rel fv_to_num]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_amount_mid]
     mov ecx, json_txn_amount_mid_len
     call copy_to_r14
@@ -4074,7 +4033,7 @@ hs_insufficient:
 hs_table_full:
     jmp ca_table_full
 
-# --- POST /v1/accounts/acct_x86_N/withdraw ---
+# --- POST /v1/accounts/acct_<uid>/withdraw ---
 handle_withdraw:
     call check_form_ct
     test eax, eax
@@ -4280,13 +4239,13 @@ hw_idem_new:
     mov ecx, json_txn_id_prefix_len
     call copy_to_r14
     lea rax, [rbx + 1]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_object_acctid]
     mov ecx, json_txn_object_acctid_len
     call copy_to_r14
     lea rdi, [rel txn_account_ids]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_amount_mid]
     mov ecx, json_txn_amount_mid_len
     call copy_to_r14
@@ -4377,7 +4336,7 @@ hw_insufficient:
 hw_table_full:
     jmp ca_table_full
 
-# --- POST /v1/accounts/acct_x86_N/deposit (minimal funding for money-movement tests) ---
+# --- POST /v1/accounts/acct_<uid>/deposit (minimal funding for money-movement tests) ---
 handle_deposit:
     call check_form_ct
     test eax, eax
@@ -4576,13 +4535,13 @@ hd_idem_new:
     mov ecx, json_txn_id_prefix_len
     call copy_to_r14
     lea rax, [rbx + 1]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_object_acctid]
     mov ecx, json_txn_object_acctid_len
     call copy_to_r14
     lea rdi, [rel txn_account_ids]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_amount_mid]
     mov ecx, json_txn_amount_mid_len
     call copy_to_r14
@@ -4659,7 +4618,7 @@ hd_invalid:
 hd_table_full:
     jmp ca_table_full
 
-# --- POST /v1/transactions/txn_x86_N/reverse ---
+# --- POST /v1/transactions/txn_<uid>/reverse ---
 handle_reverse:
     mov rax, [rel move_txn]
     cmp rax, 1
@@ -4813,13 +4772,13 @@ hr_commit:
     mov ecx, json_txn_id_prefix_len
     call copy_to_r14
     lea rax, [rbx + 1]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_rev_txnid_mid]
     mov ecx, json_rev_txnid_mid_len
     call copy_to_r14
     lea rdi, [rel txn_link]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_txn_amount_mid]
     mov ecx, json_txn_amount_mid_len
     call copy_to_r14
@@ -4905,7 +4864,7 @@ append_event_item:
     push r15
     mov rax, rbx
     inc rax
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_evt_object_type]
     mov ecx, json_evt_object_type_len
     call copy_to_r14
@@ -4946,7 +4905,7 @@ aei_after_kind:
     push r15
     lea rdi, [rel event_txn_ids]
     mov rax, [rdi + rbx * 8]
-    call append_u64_to_r14
+    call append_uid_to_r14
     lea rsi, [rel json_evt_amount_mid]
     mov ecx, json_evt_amount_mid_len
     call copy_to_r14
@@ -4962,37 +4921,19 @@ aei_after_kind:
     pop rbx
     ret
 
-# --- GET /v1/events/evt_x86_N ---
+# --- GET /v1/events/evt_<uid> ---
 retrieve_event:
     lea rsi, [rbx + get_events_prefix_len]
     mov r8, rbx
     add r8, [rel request_len]
-    xor rax, rax
-    xor r10d, r10d
-revt_digits:
-    cmp rsi, r8
-    jae revt_digits_done
-    movzx edx, byte ptr [rsi]
-    cmp dl, '0'
-    jb revt_digits_done
-    cmp dl, '9'
-    ja revt_digits_done
-    imul rax, rax, 10
-    sub edx, '0'
-    add rax, rdx
-    inc rsi
-    inc r10
-    jmp revt_digits
-revt_digits_done:
-    test r10, r10
+    call decode_uid_token
+    test rax, rax
     jz respond_404
     cmp rsi, r8
     jae revt_path_ok
     cmp byte ptr [rsi], ' '
     jne respond_404
 revt_path_ok:
-    cmp rax, 1
-    jb revt_not_found
     cmp rax, [rel event_count]
     ja revt_not_found
     mov rbx, rax
