@@ -619,6 +619,7 @@ printf '%s\n' 'ok - transaction response carries request ID'
 # Minimal deposit to fund money-movement happy paths.
 request \
     -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: deposit-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=5000&currency=usd' \
     'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
@@ -629,6 +630,29 @@ assert_body_contains '"amount":5000'
 assert_header_contains 'Request-Id: req_x86_'
 assert_body_contains '"request_id":"req_x86_'
 printf '%s\n' 'ok - deposit funds account 1'
+
+# Retrying a successful deposit must replay the original transaction without
+# crediting the account or consuming another ledger slot.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: deposit-account-1' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=5000&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+assert_status 200
+assert_body_contains '"id":"txn_x86_3"'
+assert_body_contains '"type":"deposit"'
+printf '%s\n' 'ok - deposit idempotency replay'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: deposit-account-1' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=6000&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+assert_status 400
+assert_body_contains 'idempotency key reused with different parameters'
+printf '%s\n' 'ok - deposit idempotency conflict'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
@@ -704,6 +728,7 @@ printf '%s\n' 'ok - rejected deposits leave balance unchanged'
 # Send happy path: debit sender, credit recipient atomically.
 request \
     -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: send-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'to_account_id=acct_x86_2&amount=1000&currency=usd' \
     'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
@@ -716,6 +741,27 @@ assert_body_contains '"type":"transfer"'
 assert_header_contains 'Request-Id: req_x86_'
 assert_body_contains '"request_id":"req_x86_'
 printf '%s\n' 'ok - send transfers funds'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: send-account-1' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_2&amount=1000&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/send'
+assert_status 200
+assert_body_contains '"id":"txn_x86_4"'
+assert_body_contains '"type":"transfer"'
+printf '%s\n' 'ok - send idempotency replay'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: send-account-1' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'to_account_id=acct_x86_1&amount=1000&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_2/send'
+assert_status 400
+assert_body_contains 'idempotency key reused with different parameters'
+printf '%s\n' 'ok - send idempotency account conflict'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
@@ -819,6 +865,7 @@ printf '%s\n' 'ok - rejected sends are atomic'
 # Withdraw happy path.
 request \
     -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: withdraw-account-1' \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data 'amount=500&currency=usd' \
     'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
@@ -828,6 +875,17 @@ assert_body_contains '"type":"withdrawal"'
 assert_body_contains '"amount":500'
 assert_header_contains 'Request-Id: req_x86_'
 printf '%s\n' 'ok - withdraw debits account'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: withdraw-account-1' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=500&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/withdraw'
+assert_status 200
+assert_body_contains '"id":"txn_x86_5"'
+assert_body_contains '"type":"withdrawal"'
+printf '%s\n' 'ok - withdraw idempotency replay'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \

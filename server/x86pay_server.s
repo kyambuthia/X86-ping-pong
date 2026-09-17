@@ -106,11 +106,12 @@ json_status_suffix_end:
 .equ json_status_suffix_len, json_status_suffix_end - json_status_suffix
 
 .equ IDEM_TABLE_CAP, 8
-.equ IDEM_ENTRY_SZ, 288
+.equ IDEM_ENTRY_SZ, 296
 .equ IDEM_KEY_LEN_OFF, 256
 .equ IDEM_AMOUNT_OFF, 264
 .equ IDEM_CURRENCY_OFF, 272
-.equ IDEM_SEQ_OFF, 280
+.equ IDEM_CONTEXT_OFF, 280
+.equ IDEM_SEQ_OFF, 288
 
 json_status_mid:
     .ascii "\",\"status\":\"requires_payment_method\",\"request_id\":\"req_x86_"
@@ -789,11 +790,21 @@ body_end:
     .quad 0
 current_amount:
     .quad 0
+current_idem_context:
+    .quad 0
 current_idem_len:
     .quad 0
 
 idem_table:
     .zero IDEM_TABLE_CAP * IDEM_ENTRY_SZ
+money_deposit_idem_table:
+    .zero IDEM_TABLE_CAP * IDEM_ENTRY_SZ
+money_send_idem_table:
+    .zero IDEM_TABLE_CAP * IDEM_ENTRY_SZ
+money_withdraw_idem_table:
+    .zero IDEM_TABLE_CAP * IDEM_ENTRY_SZ
+idem_table_ptr:
+    .quad 0
 
 form_amount_seen:
     .quad 0
@@ -1361,6 +1372,9 @@ auth_trim_done:
     jmp respond_404
 
 create_intent:
+    lea rax, [rel idem_table]
+    mov [rel idem_table_ptr], rax
+    mov qword ptr [rel current_idem_context], 0
     # POST bodies must use the form encoding understood by this slice.
     # Content-Type name is case-insensitive; value stays exact.
     mov rsi, rbx
@@ -1474,7 +1488,7 @@ create_new_intent:
     test rcx, rcx
     jz create_intent_store_arrays
 
-    lea r11, [rel idem_table]
+    mov r11, [rel idem_table_ptr]
     xor r10d, r10d
 find_slot_loop:
     cmp r10, IDEM_TABLE_CAP
@@ -1788,7 +1802,7 @@ check_idempotency:
     test rcx, rcx
     jz no_matching_idempotency
 
-    lea r11, [rel idem_table]
+    mov r11, [rel idem_table_ptr]
     xor r10d, r10d
 
 check_idem_loop:
@@ -1817,6 +1831,10 @@ check_idem_loop:
     cmp eax, [r11 + IDEM_CURRENCY_OFF]
     jne idempotency_conflict
 
+    mov rax, [rel current_idem_context]
+    cmp rax, [r11 + IDEM_CONTEXT_OFF]
+    jne idempotency_conflict
+
     mov rax, [r11 + IDEM_SEQ_OFF]
     ret
 
@@ -1840,7 +1858,7 @@ store_idempotency:
     test rcx, rcx
     jz store_idem_done
 
-    lea r11, [rel idem_table]
+    mov r11, [rel idem_table_ptr]
     xor r10d, r10d
 
 store_idem_loop:
@@ -1869,6 +1887,9 @@ store_idem_found:
     mov eax, [rel currency_tmp]
     mov [r11 + IDEM_CURRENCY_OFF], eax
 
+    mov rax, [rel current_idem_context]
+    mov [r11 + IDEM_CONTEXT_OFF], rax
+
     mov rax, [rel response_seq]
     mov [r11 + IDEM_SEQ_OFF], rax
 
@@ -1880,6 +1901,33 @@ store_idem_full:
     ret
 
 store_idem_done:
+    xor eax, eax
+    ret
+
+# check_idempotency_capacity: EAX=1 when the active table can accept a new
+# keyed request, EAX=0 when the table is full. Requests without a key never
+# consume a slot and always pass this check.
+check_idempotency_capacity:
+    mov rcx, [rel current_idem_len]
+    test rcx, rcx
+    jz idem_capacity_available
+
+    mov r11, [rel idem_table_ptr]
+    xor r10d, r10d
+check_idem_capacity_loop:
+    cmp r10, IDEM_TABLE_CAP
+    jae idem_capacity_full
+    cmp qword ptr [r11 + IDEM_SEQ_OFF], 0
+    je idem_capacity_available
+    inc r10
+    add r11, IDEM_ENTRY_SZ
+    jmp check_idem_capacity_loop
+
+idem_capacity_available:
+    mov eax, 1
+    ret
+
+idem_capacity_full:
     xor eax, eax
     ret
 
@@ -3790,6 +3838,39 @@ hs_form_done:
     jne hs_missing_amount
     cmp qword ptr [rel fv_currency_seen], 1
     jne hs_missing_currency
+
+    # Money movement idempotency is scoped to this route. Check for a replay
+    # before validating capacity or mutating either account.
+    mov rax, [rel fv_amount_val]
+    mov [rel current_amount], rax
+    mov dword ptr [rel currency_tmp], 0x00647375
+    mov rax, [rel move_src]
+    shl rax, 32
+    mov rcx, [rel fv_to_num]
+    or rax, rcx
+    mov [rel current_idem_context], rax
+    lea rax, [rel money_send_idem_table]
+    mov [rel idem_table_ptr], rax
+    lea rbx, [rel request_buf]
+    call parse_idempotency
+    test eax, eax
+    jz respond_400
+    call check_idempotency
+    test rax, rax
+    js respond_idem_conflict
+    jz hs_idem_new
+    cmp rax, 1
+    jb respond_txn_not_found
+    cmp rax, [rel txn_count]
+    ja respond_txn_not_found
+    dec rax
+    mov rbx, rax
+    jmp retrieve_txn_transfer
+
+hs_idem_new:
+    call check_idempotency_capacity
+    test eax, eax
+    jz respond_table_full
     mov rax, [rel move_src]
     cmp rax, 1
     jb respond_404
@@ -3857,6 +3938,9 @@ hs_form_done:
     mov rax, [rel fv_amount_val]
     mov [rdi + r10 * 8], rax
     inc qword ptr [rel event_count]
+    mov rax, [rel txn_count]
+    mov [rel response_seq], rax
+    call store_idempotency
     lea r14, [rel json_buf]
     lea rsi, [rel json_txn_id_prefix]
     mov ecx, json_txn_id_prefix_len
@@ -4103,6 +4187,36 @@ hw_form_done:
     jne hw_missing_amount
     cmp qword ptr [rel fv_currency_seen], 1
     jne hw_missing_currency
+
+    # Money movement idempotency is scoped to this route. Check for a replay
+    # before validating capacity or mutating the account.
+    mov rax, [rel fv_amount_val]
+    mov [rel current_amount], rax
+    mov dword ptr [rel currency_tmp], 0x00647375
+    mov rax, [rel move_src]
+    mov [rel current_idem_context], rax
+    lea rax, [rel money_withdraw_idem_table]
+    mov [rel idem_table_ptr], rax
+    lea rbx, [rel request_buf]
+    call parse_idempotency
+    test eax, eax
+    jz respond_400
+    call check_idempotency
+    test rax, rax
+    js respond_idem_conflict
+    jz hw_idem_new
+    cmp rax, 1
+    jb respond_txn_not_found
+    cmp rax, [rel txn_count]
+    ja respond_txn_not_found
+    dec rax
+    mov rbx, rax
+    jmp retrieve_txn_withdrawal
+
+hw_idem_new:
+    call check_idempotency_capacity
+    test eax, eax
+    jz respond_table_full
     mov rax, [rel move_src]
     cmp rax, 1
     jb respond_404
@@ -4155,6 +4269,9 @@ hw_form_done:
     mov rax, [rel fv_amount_val]
     mov [rdi + r10 * 8], rax
     inc qword ptr [rel event_count]
+    mov rax, [rel txn_count]
+    mov [rel response_seq], rax
+    call store_idempotency
     mov rax, [rel txn_count]
     dec rax
     mov rbx, rax
@@ -4373,6 +4490,36 @@ hd_form_done:
     jne hd_missing_amount
     cmp qword ptr [rel fv_currency_seen], 1
     jne hd_missing_currency
+
+    # Money movement idempotency is scoped to this route. Check for a replay
+    # before validating capacity or mutating the account.
+    mov rax, [rel fv_amount_val]
+    mov [rel current_amount], rax
+    mov dword ptr [rel currency_tmp], 0x00647375
+    mov rax, [rel move_src]
+    mov [rel current_idem_context], rax
+    lea rax, [rel money_deposit_idem_table]
+    mov [rel idem_table_ptr], rax
+    lea rbx, [rel request_buf]
+    call parse_idempotency
+    test eax, eax
+    jz respond_400
+    call check_idempotency
+    test rax, rax
+    js respond_idem_conflict
+    jz hd_idem_new
+    cmp rax, 1
+    jb respond_txn_not_found
+    cmp rax, [rel txn_count]
+    ja respond_txn_not_found
+    dec rax
+    mov rbx, rax
+    jmp retrieve_txn_deposit
+
+hd_idem_new:
+    call check_idempotency_capacity
+    test eax, eax
+    jz respond_table_full
     mov rax, [rel move_src]
     cmp rax, 1
     jb respond_404
@@ -4418,6 +4565,9 @@ hd_form_done:
     mov rax, [rel fv_amount_val]
     mov [rdi + r10 * 8], rax
     inc qword ptr [rel event_count]
+    mov rax, [rel txn_count]
+    mov [rel response_seq], rax
+    call store_idempotency
     mov rax, [rel txn_count]
     dec rax
     mov rbx, rax
