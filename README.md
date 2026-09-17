@@ -1,98 +1,120 @@
 # X86 Pay
 
-A small, test-only payment API server and client written in x86-64 Linux
-assembly. The project takes inspiration from the shape of Stripe's REST API,
-but it is an independent local implementation and does not process real
-payments.
+X86 Pay is a test-only payment API server and client written in x86-64 Linux
+assembly. It provides a small, Stripe-inspired HTTP API for users, accounts,
+money movement, transactions, events, and PaymentIntents.
 
-The first resource is a simplified `PaymentIntent`. The goal is to learn how
-an API server handles sockets, HTTP, authentication, resource state, and safe
-retries when every layer is built close to the machine.
+It does not process real payments. Data is held in bounded in-memory tables and
+is lost when the server stops.
 
-## Current slice
+## Current API
 
-The server currently supports:
+The canonical account flow is:
 
-- `POST /v1/payment_intents`
-- `GET /v1/payment_intents/pi_x86_<number>`
-- Bearer authentication with the local test key `x86_test_key`
-- Form-encoded `amount` and `currency` fields
-- JSON responses with a Stripe-inspired `PaymentIntent` shape
-- A small in-memory idempotency-key replay path
+1. Create a user with `POST /v1/users`.
+2. Open a USD account with `POST /v1/accounts`.
+3. Deposit funds into the account.
+4. Send, withdraw, retrieve balances, or reverse eligible transactions.
 
-See the [planned wallet API reference](docs/API.md) for the complete API specification.
+Supported routes:
 
-The bundled client creates a PaymentIntent against `127.0.0.1:4242`. The
-amount and currency can be supplied as arguments:
-
-```sh
-./build/x86pay_client 2000 usd
+```text
+POST /v1/users
+POST /v1/accounts
+GET  /v1/accounts/{account_id}
+GET  /v1/accounts/{account_id}/balance
+POST /v1/accounts/{account_id}/deposit
+POST /v1/accounts/{account_id}/send
+POST /v1/accounts/{account_id}/withdraw
+GET  /v1/transactions/{transaction_id}
+POST /v1/transactions/{transaction_id}/reverse
+GET  /v1/events
+GET  /v1/events/{event_id}
+POST /v1/payment_intents
+GET  /v1/payment_intents/{payment_intent_id}
 ```
+
+All requests require:
+
+```text
+Authorization: Bearer x86_test_key
+```
+
+Form POST requests require:
+
+```text
+Content-Type: application/x-www-form-urlencoded
+```
+
+See [`docs/API.md`](docs/API.md) for request fields, response shapes, errors,
+capacity limits, and lifecycle examples.
 
 ## Build and run
 
-This is currently targeted at x86-64 Linux and uses GNU `as` and `ld` with
-direct Linux system calls. No libc or third-party runtime is required.
+This targets x86-64 Linux and uses GNU `as` through `gcc` plus `ld`. The
+server and client use direct Linux system calls and do not require libc or
+third-party runtime dependencies.
 
 ```sh
 make
 ./build/x86pay_server
 ```
 
-Run the local integration suite with:
+The server listens on `127.0.0.1:4242`.
+
+Run the clean integration suite:
 
 ```sh
 make test
 ```
 
-The test suite starts and stops its own server and does not require external
-services.
+The suite starts its own server and exercises the full account and ledger flow.
 
-In another terminal:
+## Quickstart
+
+```sh
+base=http://127.0.0.1:4242
+key='Authorization: Bearer x86_test_key'
+form='Content-Type: application/x-www-form-urlencoded'
+
+curl -sS -X POST "$base/v1/users" \
+  -H "$key" -H "$form" \
+  -d 'email=alice@example.com'
+
+curl -sS -X POST "$base/v1/accounts" \
+  -H "$key" -H "$form" \
+  -d 'user_id=user_x86_1&currency=usd'
+
+curl -sS -X POST "$base/v1/accounts/acct_x86_1/deposit" \
+  -H "$key" -H "$form" \
+  -d 'amount=5000&currency=usd'
+
+curl -sS "$base/v1/accounts/acct_x86_1/balance" \
+  -H "$key"
+```
+
+Amounts are positive integers in minor units. The current account API supports
+`usd` only.
+
+The bundled assembly client creates a PaymentIntent:
 
 ```sh
 ./build/x86pay_client 2000 usd
 ```
 
-The server listens only on loopback and keeps data in memory. Stop it with
-`Ctrl-C`.
-
-You can also exercise the API with `curl`:
-
-```sh
-curl http://127.0.0.1:4242/v1/payment_intents \
-  -H 'Authorization: Bearer x86_test_key' \
-  -H 'Idempotency-Key: curl-demo-1' \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'amount=2000&currency=usd'
-```
-
 ## Safety boundary
 
-This is a learning implementation, not a payment processor. It has no card
-handling, TLS, durable storage, webhooks, authorization model, concurrency
-control, fraud controls, accounting guarantees, or connection to a bank or
-payment network. Never send live payment credentials or real customer data to
-it.
+This is a learning implementation, not a payment processor. It has no TLS,
+durable storage, concurrency control, multi-user authorization model, fraud
+controls, accounting guarantees, card handling, webhooks, or connection to a
+bank or payment network. Never send live payment credentials or real customer
+data to it.
 
 ## Design reference
 
-The API shape follows the broad conventions documented by Stripe: resource-
-oriented HTTP endpoints, form-encoded requests, JSON responses, API-key
-authentication, PaymentIntent lifecycle resources, and idempotency keys.
-
-- [Stripe API reference](https://docs.stripe.com/api)
-- [Stripe PaymentIntents](https://docs.stripe.com/api/payment_intents)
-- [Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests)
-- [Stripe authentication](https://docs.stripe.com/api/authentication)
-
-## Planned roadmap
-
-1. Add a proper HTTP parser, structured errors, and request IDs.
-2. Add more PaymentIntent transitions such as confirm and cancel.
-3. Add durable storage and concurrent connection handling.
-4. Add an explicit test mode and a separate storage boundary before considering
-   any external integration.
+The API borrows broad conventions from Stripe: resource-oriented routes,
+form-encoded requests, JSON responses, API-key authentication, PaymentIntent
+resources, and idempotency keys. It is an independent local implementation.
 
 ## License
 

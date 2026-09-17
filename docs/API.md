@@ -1,735 +1,299 @@
-# X86 Pay — Wallet API Reference
+# X86 Pay API Reference
 
-**Version**: Planned
-**Base URL**: `http://127.0.0.1:4242/v1`
-**Authentication**: Bearer token (see [Authentication](#authentication))
+**Status:** local test API
+**Base URL:** `http://127.0.0.1:4242/v1`
+**Authentication:** `Bearer x86_test_key`
 
-This document defines the complete planned wallet API for X86 Pay. The API is
-resource-oriented, uses form-encoded requests and JSON responses, and follows
-the conventions of Stripe's REST API. All money values are expressed as
-**integer minor units** (e.g., `2000` means 2000 cents, or $20.00 in USD).
+X86 Pay is a bounded, in-memory x86-64 assembly implementation. It is for
+local testing only and does not process real payments.
 
-The current prototype implements only PaymentIntents. The wallet API described
-here is the planned target and serves as the specification the implementation
-will grow toward.
+## Request conventions
 
----
+Every request requires:
 
-## Authentication
-
-All API requests must include an `Authorization` header with a Bearer token:
-
-```
+```http
 Authorization: Bearer x86_test_key
 ```
 
-The test key is `x86_test_key`. Requests missing or using an invalid key
-receive a `401 Unauthorized` response.
+POST requests with form data require exactly:
 
-```
-POST /v1/wallets HTTP/1.1
-Authorization: Bearer x86_test_key
+```http
 Content-Type: application/x-www-form-urlencoded
 ```
 
-Errors are returned as JSON:
+Form fields must be present exactly once. Unknown fields are rejected. Amounts
+are positive integers in minor units and are limited to eight digits. Account
+money routes currently support `currency=usd` only.
 
-```json
-{"error":{"message":"authentication required"}}
-```
+Every response includes a `Request-Id` header. JSON responses also include a
+`request_id` field. The request ID identifies the HTTP request and is not a
+persistent transaction timestamp.
 
----
+## Authentication errors
 
-## Core verbs
-
-The wallet API uses six simple verbs. Every endpoint is under `/v1/`.
-
-| Verb     | Endpoint                        | Description                    |
-|----------|---------------------------------|--------------------------------|
-| `open`   | `POST /v1/wallets`              | Create a new wallet            |
-| `deposit`| `POST /v1/wallets/{id}/deposit` | Add funds to a wallet          |
-| `check`  | `GET /v1/wallets/{id}/balance`  | Read the current balance       |
-| `send`   | `POST /v1/wallets/{id}/send`    | Transfer funds to another user |
-| `withdraw`| `POST /v1/wallets/{id}/withdraw`| Remove funds from a wallet     |
-| `reverse`| `POST /v1/transactions/{id}/reverse` | Reverse a completed transaction |
-
----
-
-## 1. Users and authentication
-
-### Who can use the API
-
-Every caller presents a Bearer token. The server recognizes one test key,
-`x86_test_key`. In production, each user would have their own key pair
-(publishable and secret). This prototype has no user registration endpoint;
-the API key is the identity.
-
-### Security boundary
-
-This is a **test-only** API. It has no TLS, no password hashing, no multi-user
-authorization model, and no fraud controls. Never send real credentials or
-real customer data to this server.
-
----
-
-## 2. Accounts (wallets)
-
-A **wallet** is a user's account that holds a balance. Every wallet has a
-unique ID (`wl_x86_<number>`), a currency, and a balance stored in integer
-minor units.
-
-### Create a wallet (`open`)
-
-```
-POST /v1/wallets
-Authorization: Bearer x86_test_key
-Content-Type: application/x-www-form-urlencoded
-
-currency=usd
-```
-
-**Request fields**
-
-| Field     | Type   | Required | Description                    |
-|-----------|--------|----------|--------------------------------|
-| `currency`| string | yes      | Three-letter ISO code (`usd`, `eur`) |
-
-**Response** `201 Created`
+Missing or invalid authentication returns `401`:
 
 ```json
 {
-  "id": "wl_x86_1",
-  "object": "wallet",
+  "error": {
+    "type": "authentication_error",
+    "code": "authentication_required",
+    "message": "authentication required",
+    "request_id": "req_x86_1"
+  }
+}
+```
+
+## Error envelope
+
+Application errors use this shape:
+
+```json
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "invalid_request",
+    "message": "missing required field: email",
+    "request_id": "req_x86_2"
+  }
+}
+```
+
+Common statuses are `400` invalid request, `401` authentication failure,
+`402` insufficient funds, `404` missing resource, `409` conflict, `413` request
+too large, and `507` bounded table capacity exhausted.
+
+## Users
+
+### Create a user
+
+```http
+POST /v1/users
+Content-Type: application/x-www-form-urlencoded
+
+email=alice@example.com
+```
+
+Response: `201 Created`
+
+```json
+{
+  "id": "user_x86_1",
+  "object": "user",
+  "email": "alice@example.com",
+  "request_id": "req_x86_3"
+}
+```
+
+Email values are stored as opaque strings up to the server field limit. Email
+uniqueness is enforced.
+
+## Accounts
+
+### Open an account
+
+```http
+POST /v1/accounts
+Content-Type: application/x-www-form-urlencoded
+
+user_id=user_x86_1&currency=usd
+```
+
+Response: `201 Created`
+
+```json
+{
+  "id": "acct_x86_1",
+  "object": "account",
+  "user_id": "user_x86_1",
   "currency": "usd",
   "balance": 0,
-  "status": "open",
-  "created": 1700000000
+  "request_id": "req_x86_4"
 }
 ```
 
-**Errors**
+### Retrieve an account
 
-| Code | Body                                                        | When                                  |
-|------|-------------------------------------------------------------|---------------------------------------|
-| 400  | `{"error":{"message":"invalid request"}}`                   | Missing or invalid currency            |
-| 401  | `{"error":{"message":"authentication required"}}`           | Missing or invalid Bearer token        |
-
-### Retrieve a wallet (`check`)
-
-```
-GET /v1/wallets/{wallet_id}
-Authorization: Bearer x86_test_key
+```http
+GET /v1/accounts/acct_x86_1
 ```
 
-**Response** `200 OK`
+### Retrieve a balance
+
+```http
+GET /v1/accounts/acct_x86_1/balance
+```
+
+Response:
 
 ```json
 {
-  "id": "wl_x86_1",
-  "object": "wallet",
-  "currency": "usd",
-  "balance": 2000,
-  "status": "open",
-  "created": 1700000000
+  "balance": 5000,
+  "request_id": "req_x86_5"
 }
 ```
 
----
+## Deposits
 
-## 3. Money values
-
-All monetary amounts in requests and responses are **integers in the smallest
-unit of the currency** (minor units). For USD, the minor unit is cents:
-
-| Display  | API value |
-|----------|-----------|
-| $1.00    | `100`     |
-| $20.00   | `2000`    |
-| $0.50    | `50`      |
-| $100.00  | `10000`   |
-
-Never send decimal values. The server rejects non-integer amounts.
-
----
-
-## 4. Deposit
-
-Add funds to an open wallet.
-
-```
-POST /v1/wallets/{wallet_id}/deposit
-Authorization: Bearer x86_test_key
+```http
+POST /v1/accounts/acct_x86_1/deposit
 Content-Type: application/x-www-form-urlencoded
 
 amount=5000&currency=usd
 ```
 
-**Request fields**
-
-| Field     | Type   | Required | Description                          |
-|-----------|--------|----------|--------------------------------------|
-| `amount`  | integer| yes      | Positive integer in minor units      |
-| `currency`| string | yes      | Must match the wallet's currency     |
-
-**Response** `200 OK`
+Response: `200 OK`
 
 ```json
 {
-  "id": "dp_x86_1",
-  "object": "deposit",
-  "wallet_id": "wl_x86_1",
+  "id": "txn_x86_2",
+  "object": "transaction",
+  "account_id": "acct_x86_1",
   "amount": 5000,
-  "currency": "usd",
-  "status": "completed",
-  "created": 1700000000
+  "type": "deposit",
+  "request_id": "req_x86_6"
 }
 ```
 
-**Errors**
+## Sending money
 
-| Code | Body                                                        | When                                  |
-|------|-------------------------------------------------------------|---------------------------------------|
-| 400  | `{"error":{"message":"invalid request"}}`                   | Missing/invalid amount, currency mismatch |
-| 401  | `{"error":{"message":"authentication required"}}`           | Missing or invalid Bearer token        |
-| 404  | `{"error":{"message":"resource not found"}}`                | Wallet does not exist                  |
-| 413  | `{"error":{"message":"request body too large"}}`            | Request body exceeds limit             |
-
----
-
-## 5. Check balance
-
-Read the current balance of a wallet.
-
-```
-GET /v1/wallets/{wallet_id}/balance
-Authorization: Bearer x86_test_key
-```
-
-**Response** `200 OK`
-
-```json
-{
-  "wallet_id": "wl_x86_1",
-  "currency": "usd",
-  "balance": 5000,
-  "object": "balance"
-}
-```
-
-**Errors**
-
-| Code | Body                                                        | When                                  |
-|------|-------------------------------------------------------------|---------------------------------------|
-| 401  | `{"error":{"message":"authentication required"}}`           | Missing or invalid Bearer token        |
-| 404  | `{"error":{"message":"resource not found"}}`                | Wallet does not exist                  |
-
----
-
-## 6. Send
-
-Transfer funds from one wallet to another user's wallet. The **recipient is
-automatically credited** — this is atomic in the sense that the sender's
-balance is debited only if the recipient can be credited.
-
-```
-POST /v1/wallets/{wallet_id}/send
-Authorization: Bearer x86_test_key
+```http
+POST /v1/accounts/acct_x86_1/send
 Content-Type: application/x-www-form-urlencoded
 
-amount=1000&currency=usd&recipient=wl_x86_2
+to_account_id=acct_x86_2&amount=1000&currency=usd
 ```
 
-**Request fields**
-
-| Field       | Type   | Required | Description                                    |
-|-------------|--------|----------|------------------------------------------------|
-| `amount`    | integer| yes      | Positive integer in minor units                |
-| `currency`  | string | yes      | Must match the sender's wallet currency          |
-| `recipient` | string | yes      | The recipient's wallet ID (`wl_x86_<number>`)   |
-
-**Response** `200 OK`
+Response:
 
 ```json
 {
-  "id": "tx_x86_1",
+  "id": "txn_x86_3",
   "object": "transaction",
-  "sender_id": "wl_x86_1",
-  "recipient_id": "wl_x86_2",
+  "sender_id": "acct_x86_1",
+  "recipient_id": "acct_x86_2",
   "amount": 1000,
-  "currency": "usd",
-  "status": "completed",
-  "created": 1700000000
+  "type": "transfer",
+  "request_id": "req_x86_7"
 }
 ```
 
-**Automatic recipient credit / receive semantics**
+Self-transfers are rejected. Insufficient funds return `402` and do not change
+either balance or append a ledger entry.
 
-When a send completes:
+## Withdrawals
 
-1. The sender's wallet balance is checked — it must be >= `amount`.
-2. The sender is debited by `amount`.
-3. The recipient's wallet is credited by `amount` **automatically**.
-4. Both sides are updated atomically: either both succeed or neither does.
-5. A transaction record is created with `status: "completed"`.
-
-The recipient does not need to take any action. The credit is immediate and
-automatic upon the sender's send succeeding.
-
-**Errors**
-
-| Code | Body                                                        | When                                       |
-|------|-------------------------------------------------------------|--------------------------------------------|
-| 400  | `{"error":{"message":"invalid request"}}`                   | Missing fields, non-positive amount, currency mismatch |
-| 401  | `{"error":{"message":"authentication required"}}`           | Missing or invalid Bearer token             |
-| 404  | `{"error":{"message":"resource not found"}}`                | Sender or recipient wallet does not exist    |
-| 402  | `{"error":{"message":"insufficient funds"}}`                | Sender balance < amount (planned)            |
-
----
-
-## 7. Withdraw
-
-Remove funds from a wallet. Funds leave the system entirely.
-
-```
-POST /v1/wallets/{wallet_id}/withdraw
-Authorization: Bearer x86_test_key
+```http
+POST /v1/accounts/acct_x86_1/withdraw
 Content-Type: application/x-www-form-urlencoded
 
-amount=2000&currency=usd
+amount=250&currency=usd
 ```
 
-**Request fields**
+The response is a transaction with `type` equal to `withdrawal`.
 
-| Field     | Type   | Required | Description                          |
-|-----------|--------|----------|--------------------------------------|
-| `amount`  | integer| yes      | Positive integer in minor units      |
-| `currency`| string | yes      | Must match the wallet's currency     |
+## Transactions and reversals
 
-**Response** `200 OK`
+Retrieve a transaction by ID:
 
-```json
-{
-  "id": "wd_x86_1",
-  "object": "withdrawal",
-  "wallet_id": "wl_x86_1",
-  "amount": 2000,
-  "currency": "usd",
-  "status": "completed",
-  "created": 1700000000
-}
+```http
+GET /v1/transactions/txn_x86_3
 ```
 
-**Errors**
+Transaction types are:
 
-| Code | Body                                                        | When                                  |
-|------|-------------------------------------------------------------|---------------------------------------|
-| 400  | `{"error":{"message":"invalid request"}}`                   | Missing/invalid amount                |
-| 401  | `{"error":{"message":"authentication required"}}`           | Missing or invalid Bearer token        |
-| 404  | `{"error":{"message":"resource not found"}}`                | Wallet does not exist                  |
-| 402  | `{"error":{"message":"insufficient funds"}}`                | Balance < amount (planned)             |
+| Type | Meaning | Reversible |
+|---|---|---|
+| `account_opened` | Account creation ledger entry | No |
+| `deposit` | Funds credited to an account | Yes, if the account can cover the debit |
+| `transfer` | Account-to-account send | Yes, if the recipient can cover the debit |
+| `withdrawal` | Funds removed from an account | Yes |
+| `reversal` | Compensating entry | No |
 
----
+Reverse an eligible transaction:
 
-## 8. Reverse
-
-Reverse a completed transaction. This refunds the amount back to the
-original sender.
-
-```
-POST /v1/transactions/{transaction_id}/reverse
+```http
+POST /v1/transactions/txn_x86_3/reverse
 Authorization: Bearer x86_test_key
 ```
 
-**Request fields**: None.
+The operation is atomic. A transaction cannot be reversed twice.
 
-**Response** `200 OK`
+## Events
 
-```json
-{
-  "id": "rev_x86_1",
-  "object": "reversal",
-  "transaction_id": "tx_x86_1",
-  "amount": 1000,
-  "currency": "usd",
-  "status": "completed",
-  "created": 1700000000
-}
+List the bounded event stream:
+
+```http
+GET /v1/events
 ```
 
-**Rules for reversal**
-
-- Only a transaction with `status: "completed"` can be reversed.
-- Reversal credits the original sender and debits the original recipient.
-- The reversal amount equals the original transaction amount.
-- A reversal creates a new transaction record linked to the original.
-
-**Errors**
-
-| Code | Body                                                        | When                                        |
-|------|-------------------------------------------------------------|---------------------------------------------|
-| 400  | `{"error":{"message":"invalid request"}}`                   | Transaction already reversed                 |
-| 401  | `{"error":{"message":"authentication required"}}`           | Missing or invalid Bearer token               |
-| 404  | `{"error":{"message":"resource not found"}}`                | Transaction does not exist                    |
-
----
-
-## 9. Transactions
-
-Every financial movement creates an immutable **transaction** record.
-
-### Transaction object
-
-```json
-{
-  "id": "tx_x86_1",
-  "object": "transaction",
-  "sender_id": "wl_x86_1",
-  "recipient_id": "wl_x86_2",
-  "amount": 1000,
-  "currency": "usd",
-  "status": "completed",
-  "created": 1700000000
-}
-```
-
-### Retrieve a transaction
-
-```
-GET /v1/transactions/{transaction_id}
-Authorization: Bearer x86_test_key
-```
-
-**Response** `200 OK`
-
-```json
-{
-  "id": "tx_x86_1",
-  "object": "transaction",
-  "sender_id": "wl_x86_1",
-  "recipient_id": "wl_x86_2",
-  "amount": 1000,
-  "currency": "usd",
-  "status": "completed",
-  "created": 1700000000
-}
-```
-
-### Immutable transactions
-
-Transaction records are **immutable once created**. Fields such as `amount`,
-`currency`, `sender_id`, `recipient_id`, and `created` cannot change. The
-only state change is `status` transitions (see [State transitions](#10-state-transitions)).
-
-A reversal does not modify the original transaction; it creates a new
-reversal record that references the original transaction ID.
-
-### List transactions
-
-```
-GET /v1/transactions
-Authorization: Bearer x86_test_key
-```
-
-**Response** `200 OK`
+Response:
 
 ```json
 {
   "object": "list",
   "data": [
     {
-      "id": "tx_x86_1",
-      "object": "transaction",
-      "sender_id": "wl_x86_1",
-      "recipient_id": "wl_x86_2",
-      "amount": 1000,
-      "currency": "usd",
-      "status": "completed",
-      "created": 1700000000
+      "id": "evt_x86_1",
+      "object": "event",
+      "type": "deposit.created",
+      "transaction_id": "txn_x86_2",
+      "amount": 5000,
+      "currency": "usd"
     }
-  ]
+  ],
+  "request_id": "req_x86_8"
 }
 ```
 
----
+Retrieve one event with `GET /v1/events/evt_x86_1`.
 
-## 10. Resource and state transitions
+## PaymentIntents
 
-### Wallet lifecycle
+PaymentIntents remain available as the original prototype resource:
 
-```
-closed → open
-open   → closed  (via withdraw that empties the wallet)
-```
-
-| State   | Meaning                                      |
-|---------|----------------------------------------------|
-| `closed`| Wallet exists but has no activity; new wallets start here |
-| `open`  | Wallet is active and can receive deposits, sends, withdrawals |
-
-A wallet transitions from `closed` to `open` on its first deposit. A wallet
-may transition back to `closed` if its balance reaches zero and all
-transactions are settled (this is a planned feature).
-
-### Transaction lifecycle
-
-```
-pending → completed
-pending → failed
-completed → reversed
-```
-
-| Status      | Meaning                                                |
-|-------------|--------------------------------------------------------|
-| `pending`   | Transaction is being processed                         |
-| `completed` | Transaction succeeded; funds have moved                |
-| `failed`    | Transaction did not succeed; no funds moved            |
-| `reversed`  | A completed transaction has been reversed              |
-
----
-
-## 11. Idempotency
-
-The API supports **idempotent requests** via the `Idempotency-Key` header.
-
-```
-POST /v1/wallets
-Authorization: Bearer x86_test_key
-Idempotency-Key: my-unique-key-123
+```http
+POST /v1/payment_intents
 Content-Type: application/x-www-form-urlencoded
+Idempotency-Key: checkout-1
 
-currency=usd
+amount=2000&currency=usd
 ```
 
-### How it works
-
-- If a request with a given idempotency key succeeds, repeating the same
-  request with the **same key and identical parameters** returns the **same
-  response** (the original response, not a new resource).
-- If the same idempotency key is used with **different parameters**, the
-  server returns `400` with an idempotency conflict error.
-- Idempotency keys are scoped to the API key and endpoint.
-
-**Idempotency conflict error**:
-
-```json
-{"error":{"message":"idempotency key reused with different parameters"}}
-```
-
-### Best practices
-
-- Generate a unique idempotency key for each logical operation.
-- Retry safely on network failures using the same key.
-- Keep idempotency keys unique across different operations (even if they
-  hit the same endpoint).
-
----
-
-## 12. Events and webhooks
-
-The API can emit **events** to registered webhook endpoints when significant
-things happen.
-
-### Event types
-
-| Event                 | Triggered when                          |
-|-----------------------|-----------------------------------------|
-| `wallet.created`      | A new wallet is opened                  |
-| `wallet.balance_changed` | Deposit, send, withdraw, or reversal changes balance |
-| `transaction.completed` | A send or deposit completes            |
-| `transaction.reversed` | A completed transaction is reversed     |
-| `transaction.failed`  | A transaction fails                     |
-
-### Webhook payload
-
-Events are sent as HTTP POST requests to the registered URL with a JSON
-body:
+The response has the form:
 
 ```json
 {
-  "event": "transaction.completed",
-  "id": "evt_x86_1",
-  "created": 1700000000,
-  "data": {
-    "id": "tx_x86_1",
-    "object": "transaction",
-    "sender_id": "wl_x86_1",
-    "recipient_id": "wl_x86_2",
-    "amount": 1000,
-    "currency": "usd",
-    "status": "completed"
-  }
+  "id": "pi_x86_1",
+  "object": "payment_intent",
+  "amount": 2000,
+  "currency": "usd",
+  "status": "requires_payment_method",
+  "request_id": "req_x86_9"
 }
 ```
 
-### Webhook configuration
+Repeating the same idempotency key with the same parameters replays the
+original response. Reusing it with different parameters returns an
+idempotency error. Idempotency is currently implemented for PaymentIntents;
+clients must not assume deposit, send, or withdraw requests are retry-safe.
 
-Webhook URLs are configured per API key. In this prototype, webhooks are
-simulated and logged; no real HTTP calls are made.
+Retrieve a PaymentIntent with:
 
-**Important**: Webhook delivery is **not guaranteed**. Your webhook endpoint
-must be idempotent — the same event may be delivered more than once.
-
----
-
-## 13. Ledger invariants
-
-The wallet system maintains the following **invariants** at all times:
-
-1. **Conservation of money**: The sum of all wallet balances across the
-   system never changes except through deposits (increase) and withdrawals
-   (decrease). Sends do not change the total — they only move money between
-   wallets.
-
-2. **No negative balances**: A wallet's balance must never be negative.
-   Deposits, sends, and withdrawals that would cause a negative balance are
-   rejected.
-
-3. **Transaction completeness**: Every debit has a corresponding credit.
-   For every transaction, `sender_balance_after = sender_balance_before - amount`
-   and `recipient_balance_after = recipient_balance_before + amount`.
-
-4. **Immutability of records**: Once a transaction is created, its data
-   cannot be altered. Reversals create new records, never modify old ones.
-
-5. **Idempotency consistency**: A replayed idempotent request never creates
-   a new resource or changes a balance.
-
-These invariants are enforced by the server before committing any state
-change.
-
----
-
-## 14. Errors
-
-All errors are returned as JSON with the appropriate HTTP status code:
-
-```json
-{"error":{"message":"<message>"}}
+```http
+GET /v1/payment_intents/pi_x86_1
 ```
 
-### Error codes
+## Capacity and persistence
 
-| Status | Body message                              | When                                          |
-|--------|-------------------------------------------|-----------------------------------------------|
-| 400    | `invalid request`                         | Missing/invalid fields, malformed input         |
-| 400    | `idempotency key reused with different parameters` | Same key, different params           |
-| 401    | `authentication required`                 | Missing or invalid Bearer token                |
-| 402    | `insufficient funds`                      | Balance less than requested amount             |
-| 404    | `resource not found`                      | Wallet, transaction, or event not found         |
-| 413    | `request body too large`                  | Request body exceeds 8192 bytes                |
+The current process uses fixed in-memory tables:
 
-### Request validation rules
+- 16 users
+- 16 accounts
+- 16 transactions
+- 16 events
+- 8 stored PaymentIntent idempotency keys
 
-- `amount` must be a positive integer (no decimals, no zero, no negatives).
-- `currency` must be a three-letter lowercase ISO code.
-- Form bodies must use `application/x-www-form-urlencoded` content type.
-- Unknown form fields are rejected.
-- Duplicate form fields are rejected.
-- Maximum request body size is 8192 bytes.
-
----
-
-## 15. Test-only boundary
-
-This API is explicitly a **test-only prototype**. The following boundaries
-apply:
-
-- **No real money**: All balances are in-memory integers. No bank accounts,
-  no card networks, no real payment processing.
-- **No TLS**: Traffic is plaintext HTTP on loopback only.
-- **No durable storage**: All data lives in memory. Restarting the server
-  loses all wallets, balances, and transactions.
-- **No concurrent control**: The prototype handles one connection at a time.
-  This is not safe for production concurrency.
-- **No fraud controls**: There is no risk scoring, no velocity checking, no
-  account review.
-- **No authorization model**: The single test key grants full access. There
-  is no concept of user roles or permissions.
-- **No webhook delivery**: Events are simulated; no real HTTP calls are made
-  to webhook URLs.
-- **No compliance**: This does not satisfy PCI DSS, KYC, AML, or any other
-  regulatory requirement.
-
-**Never** use this API with real payment credentials or real customer data.
-
----
-
-## Appendix: Complete example flow
-
-### Opening a wallet and funding it
-
-```sh
-# Open a wallet
-curl http://127.0.0.1:4242/v1/wallets \
-  -H 'Authorization: Bearer x86_test_key' \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'currency=usd'
-# => {"id":"wl_x86_1","object":"wallet","currency":"usd","balance":0,"status":"open",...}
-
-# Deposit funds
-curl http://127.0.0.1:4242/v1/wallets/wl_x86_1/deposit \
-  -H 'Authorization: Bearer x86_test_key' \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'amount=5000&currency=usd'
-# => {"id":"dp_x86_1","object":"deposit","wallet_id":"wl_x86_1","amount":5000,...}
-
-# Check balance
-curl http://127.0.0.1:4242/v1/wallets/wl_x86_1/balance \
-  -H 'Authorization: Bearer x86_test_key'
-# => {"wallet_id":"wl_x86_1","currency":"usd","balance":5000,"object":"balance"}
-```
-
-### Sending money to another user
-
-```sh
-# User B opens a wallet
-curl http://127.0.0.1:4242/v1/wallets \
-  -H 'Authorization: Bearer x86_test_key' \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'currency=usd'
-# => {"id":"wl_x86_2","object":"wallet","currency":"usd","balance":0,...}
-
-# User A sends 1000 cents to User B
-curl http://127.0.0.1:4242/v1/wallets/wl_x86_1/send \
-  -H 'Authorization: Bearer x86_test_key' \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'amount=1000&currency=usd&recipient=wl_x86_2'
-# => {"id":"tx_x86_1","object":"transaction","sender_id":"wl_x86_1","recipient_id":"wl_x86_2","amount":1000,...}
-
-# Both balances updated automatically
-curl http://127.0.0.1:4242/v1/wallets/wl_x86_1/balance ...
-# => {"wallet_id":"wl_x86_1","currency":"usd","balance":4000,...}
-curl http://127.0.0.1:4242/v1/wallets/wl_x86_2/balance ...
-# => {"wallet_id":"wl_x86_2","currency":"usd","balance":1000,...}
-```
-
-### Reversing a transaction
-
-```sh
-curl -X POST http://127.0.0.1:4242/v1/transactions/tx_x86_1/reverse \
-  -H 'Authorization: Bearer x86_test_key'
-# => {"id":"rev_x86_1","object":"reversal","transaction_id":"tx_x86_1","amount":1000,...}
-```
-
----
-
-## Design reference
-
-The API shape follows the broad conventions documented by Stripe:
-
-- [Stripe API reference](https://docs.stripe.com/api)
-- [Stripe PaymentIntents](https://docs.stripe.com/api/payment_intents)
-- [Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests)
-- [Stripe authentication](https://docs.stripe.com/api/authentication)
-
-## Planned roadmap
-
-1. Add a proper HTTP parser, structured errors, and request IDs.
-2. Add more wallet transitions and a full ledger implementation.
-3. Add durable storage and concurrent connection handling.
-4. Add an explicit test mode and a separate storage boundary before
-   considering any external integration.
-
-## License
-
-No license has been selected yet.
+Capacity failures return `507`. A rejected capacity request does not mutate the
+associated account, balance, transaction, or event state. Restarting the
+server clears all state.
