@@ -187,4 +187,79 @@ assert_status 413
 assert_body_contains 'request body too large'
 printf '%s\n' 'ok - oversized request rejection'
 
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: multi-key-a' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=1500&currency=gbp' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 200
+assert_body_contains '"id":"pi_x86_3"'
+assert_body_contains '"amount":1500'
+printf '%s\n' 'ok - multiple independent keys (key-a)'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: multi-key-b' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=2500&currency=jpy' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 200
+assert_body_contains '"id":"pi_x86_4"'
+assert_body_contains '"amount":2500'
+printf '%s\n' 'ok - multiple independent keys (key-b)'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: multi-key-a' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=1500&currency=gbp' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 200
+assert_body_contains '"id":"pi_x86_3"'
+printf '%s\n' 'ok - cross-replay returns original result'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: multi-key-b' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=9999&currency=jpy' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 400
+assert_body_contains 'idempotency key reused with different parameters'
+printf '%s\n' 'ok - key reuse with different params conflict'
+
+# Fill remaining idempotency table slots (4 used so far: demo-1,
+# integration-key-1, multi-key-a, multi-key-b; capacity is 8).
+i=1
+while [ "$i" -le 4 ]; do
+    request \
+        -H 'Authorization: Bearer x86_test_key' \
+        -H "Idempotency-Key: fill-key-${i}" \
+        -H 'Content-Type: application/x-www-form-urlencoded' \
+        --data "amount=$((i * 100))&currency=usd" \
+        'http://127.0.0.1:4242/v1/payment_intents'
+    assert_status 200
+    i=$((i + 1))
+done
+printf '%s\n' 'ok - filled idempotency table'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: overflow-key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 507
+assert_body_contains 'idempotency table full'
+printf '%s\n' 'ok - idempotency table full'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 200
+printf '%s\n' 'ok - request without key succeeds when table is full'
+
 printf '%s\n' 'all integration tests passed'

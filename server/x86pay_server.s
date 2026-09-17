@@ -93,6 +93,13 @@ json_status_suffix:
 json_status_suffix_end:
 .equ json_status_suffix_len, json_status_suffix_end - json_status_suffix
 
+.equ IDEM_TABLE_CAP, 8
+.equ IDEM_ENTRY_SZ, 288
+.equ IDEM_KEY_LEN_OFF, 256
+.equ IDEM_AMOUNT_OFF, 264
+.equ IDEM_CURRENCY_OFF, 272
+.equ IDEM_SEQ_OFF, 280
+
 status_200:
     .ascii "200 OK"
 status_200_end:
@@ -143,6 +150,16 @@ body_idem_conflict:
 body_idem_conflict_end:
 .equ body_idem_conflict_len, body_idem_conflict_end - body_idem_conflict
 
+status_507:
+    .ascii "507 Insufficient Storage"
+status_507_end:
+.equ status_507_len, status_507_end - status_507
+
+body_507:
+    .ascii "{\"error\":{\"message\":\"idempotency table full\"}}"
+body_507_end:
+.equ body_507_len, body_507_end - body_507
+
 .section .bss
 
 .align 8
@@ -158,8 +175,6 @@ currency_tmp:
     .zero 4
 current_idem:
     .zero 256
-stored_idem:
-    .zero 256
 
 request_len:
     .quad 0
@@ -173,14 +188,9 @@ current_amount:
     .quad 0
 current_idem_len:
     .quad 0
-stored_idem_len:
-    .quad 0
-stored_idem_seq:
-    .quad 0
-stored_idem_amount:
-    .quad 0
-stored_idem_currency:
-    .long 0
+
+idem_table:
+    .zero IDEM_TABLE_CAP * IDEM_ENTRY_SZ
 
 form_amount_seen:
     .quad 0
@@ -476,6 +486,24 @@ create_new_intent:
     cmp rbx, 16
     jae respond_400
 
+    # If there is an idempotency key, verify the table has space before
+    # creating the intent so the sequence stays gap-free on overflow.
+    mov rcx, [rel current_idem_len]
+    test rcx, rcx
+    jz create_intent_store_arrays
+
+    lea r11, [rel idem_table]
+    xor r10d, r10d
+find_slot_loop:
+    cmp r10, IDEM_TABLE_CAP
+    jae respond_table_full
+    cmp qword ptr [r11 + IDEM_SEQ_OFF], 0
+    je create_intent_store_arrays
+    inc r10
+    add r11, IDEM_ENTRY_SZ
+    jmp find_slot_loop
+
+create_intent_store_arrays:
     lea rdi, [rel intent_amounts]
     mov rax, [rel current_amount]
     mov [rdi + rbx * 8], rax
@@ -486,23 +514,11 @@ create_new_intent:
 
     inc qword ptr [rel intent_count]
     lea rax, [rbx + 1]
-    mov [rel stored_idem_seq], rax
+    mov [rel response_seq], rax
 
-    # Retain the last idempotency key for replay in this in-memory MVP.
-    mov rcx, [rel current_idem_len]
-    mov [rel stored_idem_len], rcx
-    test rcx, rcx
-    jz no_idem_to_store
-    lea rsi, [rel current_idem]
-    lea rdi, [rel stored_idem]
-    rep movsb
-    mov rax, [rel current_amount]
-    mov [rel stored_idem_amount], rax
-    mov eax, [rel currency_tmp]
-    mov [rel stored_idem_currency], eax
+    call store_idempotency
 
-no_idem_to_store:
-    mov rax, [rel stored_idem_seq]
+    mov rax, [rel response_seq]
     call send_intent_response
     ret
 
@@ -736,28 +752,99 @@ check_idempotency:
     mov rcx, [rel current_idem_len]
     test rcx, rcx
     jz no_matching_idempotency
-    cmp rcx, [rel stored_idem_len]
-    jne no_matching_idempotency
+
+    lea r11, [rel idem_table]
+    xor r10d, r10d
+
+check_idem_loop:
+    cmp r10, IDEM_TABLE_CAP
+    jae no_matching_idempotency
+
+    cmp qword ptr [r11 + IDEM_SEQ_OFF], 0
+    je check_idem_next
+
+    mov rax, [r11 + IDEM_KEY_LEN_OFF]
+    cmp rax, [rel current_idem_len]
+    jne check_idem_next
+
     lea rsi, [rel current_idem]
-    lea rdi, [rel stored_idem]
+    mov rdi, r11
+    mov rcx, [rel current_idem_len]
     call buffers_equal
     test eax, eax
-    jz no_matching_idempotency
+    jz check_idem_next
 
     mov rax, [rel current_amount]
-    cmp rax, [rel stored_idem_amount]
+    cmp rax, [r11 + IDEM_AMOUNT_OFF]
     jne idempotency_conflict
+
     mov eax, [rel currency_tmp]
-    cmp eax, [rel stored_idem_currency]
+    cmp eax, [r11 + IDEM_CURRENCY_OFF]
     jne idempotency_conflict
-    mov rax, [rel stored_idem_seq]
+
+    mov rax, [r11 + IDEM_SEQ_OFF]
     ret
+
+check_idem_next:
+    inc r10
+    add r11, IDEM_ENTRY_SZ
+    jmp check_idem_loop
 
 idempotency_conflict:
     mov rax, -1
     ret
 
 no_matching_idempotency:
+    xor eax, eax
+    ret
+
+# store_idempotency: write the current key and fingerprint into the first
+# free table slot.  Returns RAX=0 on success, RAX=-1 when no slot is free.
+store_idempotency:
+    mov rcx, [rel current_idem_len]
+    test rcx, rcx
+    jz store_idem_done
+
+    lea r11, [rel idem_table]
+    xor r10d, r10d
+
+store_idem_loop:
+    cmp r10, IDEM_TABLE_CAP
+    jae store_idem_full
+
+    cmp qword ptr [r11 + IDEM_SEQ_OFF], 0
+    je store_idem_found
+
+    inc r10
+    add r11, IDEM_ENTRY_SZ
+    jmp store_idem_loop
+
+store_idem_found:
+    lea rsi, [rel current_idem]
+    mov rdi, r11
+    mov rcx, [rel current_idem_len]
+    rep movsb
+
+    mov rax, [rel current_idem_len]
+    mov [r11 + IDEM_KEY_LEN_OFF], rax
+
+    mov rax, [rel current_amount]
+    mov [r11 + IDEM_AMOUNT_OFF], rax
+
+    mov eax, [rel currency_tmp]
+    mov [r11 + IDEM_CURRENCY_OFF], eax
+
+    mov rax, [rel response_seq]
+    mov [r11 + IDEM_SEQ_OFF], rax
+
+    xor eax, eax
+    ret
+
+store_idem_full:
+    mov rax, -1
+    ret
+
+store_idem_done:
     xor eax, eax
     ret
 
@@ -928,6 +1015,14 @@ respond_idem_conflict:
     mov ecx, status_400_len
     lea rdx, [rel body_idem_conflict]
     mov r8d, body_idem_conflict_len
+    call send_json
+    ret
+
+respond_table_full:
+    lea rsi, [rel status_507]
+    mov ecx, status_507_len
+    lea rdx, [rel body_507]
+    mov r8d, body_507_len
     call send_json
     ret
 
