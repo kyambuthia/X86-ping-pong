@@ -1,7 +1,7 @@
 # X86 Pay — Wallet API Reference
 
-**Version**: Planned  
-**Base URL**: `http://127.0.0.1:4242/v1`  
+**Version**: Planned
+**Base URL**: `http://127.0.0.1:4242/v1`
 **Authentication**: Bearer token (see [Authentication](#authentication))
 
 This document defines the complete planned wallet API for X86 Pay. The API is
