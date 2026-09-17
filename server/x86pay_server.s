@@ -368,6 +368,8 @@ balance_suffix_end:
 .equ ACCT_CURRENCY_LEN, 4
 
 .equ TXN_TABLE_CAP, 16
+.equ TXN_TYPE_OPENED, 1
+.equ TXN_TYPE_DEPOSIT, 5
 
 # --- Form field keys ---
 
@@ -2898,7 +2900,7 @@ ca_uid_done:
     lea rdi, [rel txn_amounts]
     mov qword ptr [rdi + r10 * 8], 0
     lea rdi, [rel txn_types]
-    mov qword ptr [rdi + r10 * 8], 1    # 1 = account_opened
+    mov qword ptr [rdi + r10 * 8], TXN_TYPE_OPENED
     inc qword ptr [rel txn_count]
 
     # Build JSON: {"id":"acct_x86_N","object":"account","user_id":"user_x86_M","currency":"usd","balance":0,"request_id":"req_x86_N"}
@@ -2922,9 +2924,9 @@ ca_uid_done:
     lea rsi, [rel json_acct_balance_mid]
     mov ecx, json_acct_balance_mid_len
     call copy_to_r14
-    mov eax, '0'
-    mov byte ptr [r14], al
-    inc r14
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
     lea rsi, [rel json_acct_reqid_mid]
     mov ecx, json_acct_reqid_mid_len
     call copy_to_r14
@@ -3141,12 +3143,14 @@ retrieve_transaction:
     lea rsi, [rel json_txn_type_mid]
     mov ecx, json_txn_type_mid_len
     call copy_to_r14
-    lea rsi, [rel json_txn_type_opened]
-    mov ecx, json_txn_type_opened_len
-    call copy_to_r14
+    lea rdi, [rel txn_types]
+    mov rax, [rdi + rbx * 8]
+    cmp rax, TXN_TYPE_OPENED
+    je txn_type_opened
+    # Preserve forward compatibility for ledger types added later.
+    call append_u64_to_r14
     jmp txn_type_done
-txn_type_other:
-    # Unknown type; should not happen.
+txn_type_opened:
     lea rsi, [rel json_txn_type_opened]
     mov ecx, json_txn_type_opened_len
     call copy_to_r14

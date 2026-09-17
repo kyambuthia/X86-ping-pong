@@ -602,6 +602,13 @@ assert_status 200
 assert_body_contains '"balance":5000'
 printf '%s\n' 'ok - deposit credits balance'
 
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1'
+assert_status 200
+assert_body_contains '"balance":5000'
+printf '%s\n' 'ok - account reflects deposit'
+
 # Deposit rejected: missing amount, no mutation.
 request \
     -H 'Authorization: Bearer x86_test_key' \
@@ -621,6 +628,26 @@ request \
 assert_status 400
 assert_body_contains 'currency must be usd'
 printf '%s\n' 'ok - deposit invalid currency'
+
+# Deposit rejected: missing currency, no mutation.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+assert_status 400
+assert_body_contains 'missing required field: currency'
+printf '%s\n' 'ok - deposit missing currency'
+
+# Deposit rejected: duplicate field, no mutation.
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&amount=200&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/deposit'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - deposit duplicate amount'
 
 # Deposit rejected: nonexistent account.
 request \
@@ -967,5 +994,4 @@ request \
 assert_status 200
 assert_body_contains '"balance":0'
 printf '%s\n' 'ok - ledger capacity rejected atomically'
-
 printf '%s\n' 'all integration tests passed'
