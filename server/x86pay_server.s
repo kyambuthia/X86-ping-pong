@@ -13,6 +13,18 @@ server_addr:
 reuse_value:
     .long 1
 
+# timeval for SO_RCVTIMEO/SO_SNDTIMEO: 5s conservative request/response timeout.
+socket_timeout:
+    .quad 5
+    .quad 0
+
+# kernel_sigaction with handler = SIG_IGN; used to ignore SIGPIPE.
+sigpipe_action:
+    .quad 1                 # SIG_IGN
+    .quad 0                 # flags
+    .quad 0                 # restorer
+    .quad 0                 # mask
+
 auth_header:
     .ascii "\r\nAuthorization: Bearer x86_test_key\r\n"
 auth_header_end:
@@ -223,6 +235,14 @@ response_seq:
 .global _start
 
 _start:
+    # Ignore SIGPIPE so a peer that closes early cannot terminate the server.
+    mov eax, 13             # rt_sigaction(SIGPIPE, &act, NULL, 8)
+    mov edi, 13
+    lea rsi, [rel sigpipe_action]
+    xor edx, edx
+    mov r10d, 8
+    syscall
+
     # socket(AF_INET, SOCK_STREAM, 0)
     mov eax, 41
     mov edi, 2
@@ -266,9 +286,27 @@ accept_loop:
     xor esi, esi
     xor edx, edx
     syscall
+    cmp rax, -4             # EINTR
+    je accept_loop
     test rax, rax
     js exit_failure
     mov r13, rax
+
+    # SO_RCVTIMEO/SO_SNDTIMEO bound a stalled peer to the accept loop.
+    mov eax, 54             # setsockopt(SOL_SOCKET, SO_RCVTIMEO, ...)
+    mov rdi, r13
+    mov esi, 1
+    mov edx, 20             # SO_RCVTIMEO
+    lea r10, [rel socket_timeout]
+    mov r8d, 16
+    syscall
+    mov eax, 54
+    mov rdi, r13
+    mov esi, 1
+    mov edx, 21             # SO_SNDTIMEO
+    lea r10, [rel socket_timeout]
+    mov r8d, 16
+    syscall
 
     call read_request
     test rax, rax
@@ -312,6 +350,8 @@ read_request_more:
     syscall
     cmp rax, -4           # EINTR
     je read_request_more
+    cmp rax, -11          # EAGAIN from the receive timeout
+    je read_request_timeout
     test rax, rax
     jle read_request_failed
     add r14, rax
@@ -406,6 +446,11 @@ read_request_more_or_full:
 
 read_request_complete:
     mov rax, r14
+    ret
+
+read_request_timeout:
+    # Peer stalled past the receive timeout; drop the connection silently.
+    xor eax, eax
     ret
 
 read_request_failed:
@@ -1056,10 +1101,11 @@ write_all:
 write_all_loop:
     mov eax, 1
     syscall
-    test rax, rax
-    js write_all_done
+    cmp rax, -4           # EINTR
+    je write_all_loop
     test rax, rax
     jz write_all_done
+    js write_all_done
     sub rdx, rax
     add rsi, rax
     jnz write_all_loop

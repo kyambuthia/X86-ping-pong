@@ -55,6 +55,18 @@ default_currency:
 default_currency_end:
 .equ default_currency_len, default_currency_end - default_currency
 
+# timeval for SO_RCVTIMEO/SO_SNDTIMEO: 5s conservative I/O timeout.
+socket_timeout:
+    .quad 5
+    .quad 0
+
+# kernel_sigaction with handler = SIG_IGN; used to ignore SIGPIPE.
+sigpipe_action:
+    .quad 1                 # SIG_IGN
+    .quad 0                 # flags
+    .quad 0                 # restorer
+    .quad 0                 # mask
+
 .section .bss
 
 .align 8
@@ -73,6 +85,14 @@ body_len:
 .global _start
 
 _start:
+    # Ignore SIGPIPE so response forwarding cannot terminate the client.
+    mov eax, 13             # rt_sigaction(SIGPIPE, &act, NULL, 8)
+    mov edi, 13
+    lea rsi, [rel sigpipe_action]
+    xor edx, edx
+    mov r10d, 8
+    syscall
+
     mov r15, [rsp]          # argc
 
     # Build amount=<argv[1] or 2000>&currency=<argv[2] or usd>.
@@ -153,6 +173,22 @@ body_ready:
     syscall
     test rax, rax
     js close_and_fail
+
+    # SO_RCVTIMEO/SO_SNDTIMEO bound a stalled connection.
+    mov eax, 54
+    mov rdi, r12
+    mov esi, 1
+    mov edx, 20             # SO_RCVTIMEO
+    lea r10, [rel socket_timeout]
+    mov r8d, 16
+    syscall
+    mov eax, 54
+    mov rdi, r12
+    mov esi, 1
+    mov edx, 21             # SO_SNDTIMEO
+    lea r10, [rel socket_timeout]
+    mov r8d, 16
+    syscall
 
     lea rsi, [rel request_buf]
     lea rax, [rel request_buf]
@@ -247,6 +283,8 @@ write_all:
 write_all_loop:
     mov eax, 1
     syscall
+    cmp rax, -4           # EINTR
+    je write_all_loop
     test rax, rax
     js write_all_done
     test rax, rax
