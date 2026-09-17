@@ -332,6 +332,217 @@ msg_storage:
 msg_storage_end:
 .equ msg_storage_len, msg_storage_end - msg_storage
 
+# --- Users / Accounts / Ledger routes ---
+
+post_users_route:
+    .ascii "POST /v1/users "
+post_users_route_end:
+.equ post_users_route_len, post_users_route_end - post_users_route
+
+post_accounts_route:
+    .ascii "POST /v1/accounts "
+post_accounts_route_end:
+.equ post_accounts_route_len, post_accounts_route_end - post_accounts_route
+
+get_accounts_route:
+    .ascii "GET /v1/accounts/acct_x86_"
+get_accounts_route_end:
+.equ get_accounts_route_len, get_accounts_route_end - get_accounts_route
+
+get_txns_route:
+    .ascii "GET /v1/transactions/txn_x86_"
+get_txns_route_end:
+.equ get_txns_route_len, get_txns_route_end - get_txns_route
+
+balance_suffix:
+    .ascii "/balance "
+balance_suffix_end:
+.equ balance_suffix_len, balance_suffix_end - balance_suffix
+
+# --- Table capacities ---
+
+.equ USER_TABLE_CAP, 16
+.equ USER_EMAIL_LEN, 120
+
+.equ ACCT_TABLE_CAP, 16
+.equ ACCT_CURRENCY_LEN, 4
+
+.equ TXN_TABLE_CAP, 16
+
+# --- Form field keys ---
+
+email_key:
+    .ascii "email="
+email_key_end:
+.equ email_key_len, email_key_end - email_key
+
+user_id_key:
+    .ascii "user_id="
+user_id_key_end:
+.equ user_id_key_len, user_id_key_end - user_id_key
+
+# --- JSON user prefixes ---
+
+json_user_id_prefix:
+    .ascii "{\"id\":\"user_x86_"
+json_user_id_prefix_end:
+.equ json_user_id_prefix_len, json_user_id_prefix_end - json_user_id_prefix
+
+json_user_object_email:
+    .ascii "\",\"object\":\"user\",\"email\":\""
+json_user_object_email_end:
+.equ json_user_object_email_len, json_user_object_email_end - json_user_object_email
+
+json_user_email_reqid_mid:
+    .ascii "\",\"request_id\":\"req_x86_"
+json_user_email_reqid_mid_end:
+.equ json_user_email_reqid_mid_len, json_user_email_reqid_mid_end - json_user_email_reqid_mid
+
+# --- JSON account prefixes ---
+
+json_acct_id_prefix:
+    .ascii "{\"id\":\"acct_x86_"
+json_acct_id_prefix_end:
+.equ json_acct_id_prefix_len, json_acct_id_prefix_end - json_acct_id_prefix
+
+json_acct_object_userid:
+    .ascii "\",\"object\":\"account\",\"user_id\":\"user_x86_"
+json_acct_object_userid_end:
+.equ json_acct_object_userid_len, json_acct_object_userid_end - json_acct_object_userid
+
+json_acct_currency_mid:
+    .ascii "\",\"currency\":\""
+json_acct_currency_mid_end:
+.equ json_acct_currency_mid_len, json_acct_currency_mid_end - json_acct_currency_mid
+
+json_acct_balance_mid:
+    .ascii "\",\"balance\":"
+json_acct_balance_mid_end:
+.equ json_acct_balance_mid_len, json_acct_balance_mid_end - json_acct_balance_mid
+
+json_acct_reqid_mid:
+    .ascii ",\"request_id\":\"req_x86_"
+json_acct_reqid_mid_end:
+.equ json_acct_reqid_mid_len, json_acct_reqid_mid_end - json_acct_reqid_mid
+
+# --- JSON transaction prefixes ---
+
+json_txn_id_prefix:
+    .ascii "{\"id\":\"txn_x86_"
+json_txn_id_prefix_end:
+.equ json_txn_id_prefix_len, json_txn_id_prefix_end - json_txn_id_prefix
+
+json_txn_object_acctid:
+    .ascii "\",\"object\":\"transaction\",\"account_id\":\"acct_x86_"
+json_txn_object_acctid_end:
+.equ json_txn_object_acctid_len, json_txn_object_acctid_end - json_txn_object_acctid
+
+json_txn_amount_mid:
+    .ascii "\",\"amount\":"
+json_txn_amount_mid_end:
+.equ json_txn_amount_mid_len, json_txn_amount_mid_end - json_txn_amount_mid
+
+json_txn_type_mid:
+    .ascii ",\"type\":\""
+json_txn_type_mid_end:
+.equ json_txn_type_mid_len, json_txn_type_mid_end - json_txn_type_mid
+
+json_txn_type_opened:
+    .ascii "account_opened"
+json_txn_type_opened_end:
+.equ json_txn_type_opened_len, json_txn_type_opened_end - json_txn_type_opened
+
+json_txn_reqid_mid:
+    .ascii "\",\"request_id\":\"req_x86_"
+json_txn_reqid_mid_end:
+.equ json_txn_reqid_mid_len, json_txn_reqid_mid_end - json_txn_reqid_mid
+
+# --- Balance-only response ---
+
+json_balance_value:
+    .ascii "{\"balance\":"
+json_balance_value_end:
+.equ json_balance_value_len, json_balance_value_end - json_balance_value
+
+json_balance_reqid_mid:
+    .ascii ",\"request_id\":\"req_x86_"
+json_balance_reqid_mid_end:
+.equ json_balance_reqid_mid_len, json_balance_reqid_mid_end - json_balance_reqid_mid
+
+# --- Structured error for users/accounts ---
+
+type_param_error:
+    .ascii "invalid_request_error"
+type_param_error_end:
+.equ type_param_error_len, type_param_error_end - type_param_error
+
+code_param_error:
+    .ascii "invalid_request"
+code_param_error_end:
+.equ code_param_error_len, code_param_error_end - code_param_error
+
+msg_missing_email:
+    .ascii "missing required field: email"
+msg_missing_email_end:
+.equ msg_missing_email_len, msg_missing_email_end - msg_missing_email
+
+msg_missing_user_id:
+    .ascii "missing required field: user_id"
+msg_missing_user_id_end:
+.equ msg_missing_user_id_len, msg_missing_user_id_end - msg_missing_user_id
+
+msg_missing_currency:
+    .ascii "missing required field: currency"
+msg_missing_currency_end:
+.equ msg_missing_currency_len, msg_missing_currency_end - msg_missing_currency
+
+msg_invalid_currency:
+    .ascii "currency must be usd"
+msg_invalid_currency_end:
+.equ msg_invalid_currency_len, msg_invalid_currency_end - msg_invalid_currency
+
+msg_user_not_found:
+    .ascii "user not found"
+msg_user_not_found_end:
+.equ msg_user_not_found_len, msg_user_not_found_end - msg_user_not_found
+
+msg_email_taken:
+    .ascii "email already taken"
+msg_email_taken_end:
+.equ msg_email_taken_len, msg_email_taken_end - msg_email_taken
+
+msg_email_too_long:
+    .ascii "email too long"
+msg_email_too_long_end:
+.equ msg_email_too_long_len, msg_email_too_long_end - msg_email_too_long
+
+msg_table_full:
+    .ascii "table full"
+msg_table_full_end:
+.equ msg_table_full_len, msg_table_full_end - msg_table_full
+
+msg_txn_not_found:
+    .ascii "transaction not found"
+msg_txn_not_found_end:
+.equ msg_txn_not_found_len, msg_txn_not_found_end - msg_txn_not_found
+
+# --- User ID prefix for validation ---
+user_x86_prefix:
+    .ascii "user_x86_"
+user_x86_prefix_end:
+.equ user_x86_prefix_len, user_x86_prefix_end - user_x86_prefix
+
+# --- Status 201/409 ---
+status_201:
+    .ascii "201 Created"
+status_201_end:
+.equ status_201_len, status_201_end - status_201
+
+status_409:
+    .ascii "409 Conflict"
+status_409_end:
+.equ status_409_len, status_409_end - status_409
+
 .section .bss
 
 .align 8
@@ -395,6 +606,44 @@ request_counter:
 current_req_id:
     .quad 0
 hdr_tmp_first:
+    .quad 0
+
+# --- Users table ---
+user_count:
+    .quad 0
+user_emails:
+    .zero USER_TABLE_CAP * USER_EMAIL_LEN
+
+# --- Accounts table ---
+acct_count:
+    .quad 0
+acct_user_ids:
+    .zero ACCT_TABLE_CAP * 8
+acct_currencies:
+    .zero ACCT_TABLE_CAP * ACCT_CURRENCY_LEN
+acct_balances:
+    .zero ACCT_TABLE_CAP * 8
+
+# --- Transactions table ---
+txn_count:
+    .quad 0
+txn_account_ids:
+    .zero TXN_TABLE_CAP * 8
+txn_amounts:
+    .zero TXN_TABLE_CAP * 8
+txn_types:
+    .zero TXN_TABLE_CAP * 8
+
+# --- Temp form value buffers ---
+form_value_buf:
+    .zero 256
+form_value_len:
+    .quad 0
+
+# --- Temp extracted IDs ---
+account_id:
+    .quad 0
+user_number:
     .quad 0
 
 .section .text
@@ -776,6 +1025,43 @@ auth_trim_done:
     call find_sequence
     cmp rax, rbx
     je retrieve_intent
+
+    # POST /v1/users
+    mov rsi, rbx
+    mov rcx, [rel request_len]
+    lea rdi, [rel post_users_route]
+    mov edx, post_users_route_len
+    call find_sequence
+    cmp rax, rbx
+    je create_user
+
+    # POST /v1/accounts
+    mov rsi, rbx
+    mov rcx, [rel request_len]
+    lea rdi, [rel post_accounts_route]
+    mov edx, post_accounts_route_len
+    call find_sequence
+    cmp rax, rbx
+    je create_account
+
+    # GET /v1/accounts/acct_x86_<id>[/balance]
+    mov rsi, rbx
+    mov rcx, [rel request_len]
+    lea rdi, [rel get_accounts_route]
+    mov edx, get_accounts_route_len
+    call find_sequence
+    cmp rax, rbx
+    je route_get_account
+
+    # GET /v1/transactions/txn_x86_<id>
+    mov rsi, rbx
+    mov rcx, [rel request_len]
+    lea rdi, [rel get_txns_route]
+    mov edx, get_txns_route_len
+    call find_sequence
+    cmp rax, rbx
+    je retrieve_transaction
+
     jmp respond_404
 
 create_intent:
@@ -1659,6 +1945,948 @@ write_all_loop:
     add rsi, rax
     jnz write_all_loop
 write_all_done:
+    ret
+
+# --- Users / Accounts / Ledger handlers ---
+
+# extract_user_id: extracts numeric user ID from URL after "user_x86_" prefix.
+# RSI = pointer to first char after prefix. Returns RAX=number, RSI=next char.
+extract_user_id:
+    xor rax, rax
+    xor r10d, r10d
+extract_user_id_digits:
+    cmp rsi, r8
+    jae extract_user_id_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb extract_user_id_done
+    cmp dl, '9'
+    ja extract_user_id_done
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    inc r10
+    jmp extract_user_id_digits
+extract_user_id_done:
+    test r10, r10
+    jz respond_404
+    ret
+
+# extract_acct_id: extracts numeric account ID from URL after "acct_x86_" prefix.
+# RSI = pointer to first char after prefix. Returns RAX=number, RSI=next char.
+extract_acct_id:
+    xor rax, rax
+    xor r10d, r10d
+extract_acct_id_digits:
+    cmp rsi, r8
+    jae extract_acct_id_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb extract_acct_id_done
+    cmp dl, '9'
+    ja extract_acct_id_done
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    inc r10
+    jmp extract_acct_id_digits
+extract_acct_id_done:
+    test r10, r10
+    jz respond_404
+    ret
+
+# extract_txn_id: extracts numeric transaction ID from URL after "txn_x86_" prefix.
+# RSI = pointer to first char after prefix. Returns RAX=number, RSI=next char.
+extract_txn_id:
+    xor rax, rax
+    xor r10d, r10d
+extract_txn_id_digits:
+    cmp rsi, r8
+    jae extract_txn_id_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb extract_txn_id_done
+    cmp dl, '9'
+    ja extract_txn_id_done
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    inc r10
+    jmp extract_txn_id_digits
+extract_txn_id_done:
+    test r10, r10
+    jz respond_404
+    ret
+
+# parse_form_value: parse form body for key=<value>.
+# RDI = key pattern ptr, RDX = key pattern len.
+# Sets form_value_buf and form_value_len. Returns EAX=1 on success, 0 on bad.
+parse_form_value:
+    # find_sequence advances RDI while comparing a non-matching token.
+    # Preserve the requested key so later form fields use its original start.
+    push r12
+    mov r12, rdi
+    mov qword ptr [rel form_value_len], 0
+    mov r14, [rel body_ptr]
+    mov r15, [rel body_end]
+    cmp r14, r15
+    je parse_form_value_bad
+
+parse_fv_scan:
+    mov rbx, r14
+
+parse_fv_find_sep:
+    cmp rbx, r15
+    jae parse_fv_token_end
+    cmp byte ptr [rbx], '&'
+    je parse_fv_token_end
+    inc rbx
+    jmp parse_fv_find_sep
+
+parse_fv_token_end:
+    # Try matching key at start of this token.
+    mov rcx, rbx
+    sub rcx, r14
+    cmp rcx, rdx
+    jb parse_fv_next_token
+    mov rsi, r14
+    mov rdi, r12
+    push rdx
+    call find_sequence
+    pop rdx
+    cmp rax, r14
+    jne parse_fv_next_token
+
+    # Key matched: extract value after key.
+    lea rsi, [r14 + rdx]
+    mov r8, rbx
+    xor ecx, ecx
+parse_fv_val_len:
+    cmp rsi, r8
+    jae parse_fv_val_len_done
+    inc rcx
+    inc rsi
+    jmp parse_fv_val_len
+parse_fv_val_len_done:
+    test rcx, rcx
+    jz parse_form_value_bad
+    cmp rcx, 255
+    ja parse_form_value_bad
+    mov [rel form_value_len], rcx
+    lea rdi, [rel form_value_buf]
+    mov rsi, r14
+    add rsi, rdx
+parse_fv_copy:
+    test rcx, rcx
+    jz parse_fv_copied
+    mov al, byte ptr [rsi]
+    mov byte ptr [rdi], al
+    inc rsi
+    inc rdi
+    dec rcx
+    jmp parse_fv_copy
+parse_fv_copied:
+    pop r12
+    mov eax, 1
+    ret
+
+parse_fv_next_token:
+    cmp rbx, r15
+    je parse_form_value_bad
+    cmp byte ptr [rbx], '&'
+    jne parse_form_value_bad
+    lea r14, [rbx + 1]
+    cmp r14, r15
+    jae parse_form_value_bad
+    jmp parse_fv_scan
+
+parse_form_value_bad:
+    pop r12
+    xor eax, eax
+    ret
+
+# --- Route: GET /v1/accounts/acct_x86_N[/balance] ---
+route_get_account:
+    lea rsi, [rbx + get_accounts_route_len]
+    mov r8, rbx
+    add r8, [rel request_len]
+    call extract_acct_id
+    cmp rax, 1
+    jb respond_404
+    cmp rax, [rel acct_count]
+    ja respond_404
+    mov [rel account_id], rax
+    # Check for /balance suffix.
+    cmp rsi, r8
+    jae respond_404
+    cmp byte ptr [rsi], '/'
+    je route_get_account_check_balance
+    cmp byte ptr [rsi], ' '
+    je retrieve_account
+    jmp respond_404
+route_get_account_check_balance:
+    mov r14, rsi
+    lea rdi, [rel balance_suffix]
+    mov edx, balance_suffix_len
+    mov rcx, r8
+    sub rcx, rsi
+    call find_sequence
+    cmp rax, r14
+    je retrieve_account_balance
+    jmp respond_404
+
+# --- POST /v1/users ---
+create_user:
+    # Validate Content-Type.
+    mov rsi, rbx
+    mov rcx, [rel header_len]
+    lea rdi, [rel ct_name]
+    mov edx, ct_name_len
+    call find_sequence_ci
+    test rax, rax
+    jz respond_400
+    mov [rel hdr_tmp_first], rax
+    mov rsi, rax
+    inc rsi
+    mov r8, rbx
+    add r8, [rel header_len]
+    cmp rsi, r8
+    jae cu_ct_no_dup
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel ct_name]
+    mov edx, ct_name_len
+    call find_sequence_ci
+    test rax, rax
+    jnz respond_400
+cu_ct_no_dup:
+    mov rax, [rel hdr_tmp_first]
+    add rax, ct_name_len
+    mov rsi, rax
+    mov r8, rbx
+    add r8, [rel header_len]
+cu_ct_skip:
+    cmp rsi, r8
+    jae respond_400
+    movzx eax, byte ptr [rsi]
+    cmp al, 32
+    je cu_ct_skip_inc
+    cmp al, 9
+    je cu_ct_skip_inc
+    jmp cu_ct_val
+cu_ct_skip_inc:
+    inc rsi
+    jmp cu_ct_skip
+cu_ct_val:
+    mov rdx, rsi
+cu_ct_eol:
+    cmp rdx, r8
+    jae respond_400
+    movzx eax, byte ptr [rdx]
+    cmp al, 13
+    je cu_ct_eol_found
+    cmp al, 10
+    je cu_ct_eol_found
+    inc rdx
+    jmp cu_ct_eol
+cu_ct_eol_found:
+    mov rcx, rdx
+cu_ct_trim:
+    cmp rcx, rsi
+    jbe cu_ct_done
+    movzx eax, byte ptr [rcx - 1]
+    cmp al, 32
+    je cu_ct_trim_dec
+    cmp al, 9
+    je cu_ct_trim_dec
+    jmp cu_ct_done
+cu_ct_trim_dec:
+    dec rcx
+    jmp cu_ct_trim
+cu_ct_done:
+    mov rax, rcx
+    sub rax, rsi
+    cmp rax, ct_expected_len
+    jne respond_400
+    mov rcx, rax
+    lea rdi, [rel ct_expected]
+    call buffers_equal
+    test eax, eax
+    jz respond_400
+
+    # Parse form for email=<value>.
+    mov rax, rbx
+    add rax, [rel header_len]
+    mov [rel body_ptr], rax
+    mov rdx, rbx
+    add rdx, [rel request_len]
+    mov [rel body_end], rdx
+    lea rdi, [rel email_key]
+    mov edx, email_key_len
+    call parse_form_value
+    test eax, eax
+    jz cu_missing_email
+    cmp qword ptr [rel form_value_len], USER_EMAIL_LEN
+    ja cu_email_too_long
+
+    # Reject unknown form fields (only email= allowed).
+    mov r14, [rel body_ptr]
+    mov r15, [rel body_end]
+cu_scan_fields:
+    cmp r14, r15
+    je cu_field_check_done
+    mov rdx, r14
+cu_find_sep:
+    cmp rdx, r15
+    jae cu_field_end
+    cmp byte ptr [rdx], '&'
+    je cu_field_end
+    inc rdx
+    jmp cu_find_sep
+cu_field_end:
+    mov rcx, rdx
+    sub rcx, r14
+    lea rdi, [rel email_key]
+    push rdx
+    mov rsi, r14
+    mov edx, email_key_len
+    call find_sequence
+    pop rdx
+    cmp rax, r14
+    je cu_field_next
+    # Unknown field.
+    jmp respond_400
+cu_field_next:
+    cmp rdx, r15
+    jae cu_field_check_done
+    lea r14, [rdx + 1]
+    jmp cu_scan_fields
+cu_field_check_done:
+
+    # Check capacity.
+    mov rbx, [rel user_count]
+    cmp rbx, USER_TABLE_CAP
+    jae cu_table_full
+
+    # Check for duplicate email.
+    mov r11, [rel form_value_len]
+    xor r10d, r10d
+cu_dup_loop:
+    cmp r10, rbx
+    jae cu_store
+    # Compute slot offset = r10 * USER_EMAIL_LEN.
+    mov rax, r10
+    imul rax, USER_EMAIL_LEN
+    lea rdi, [rel user_emails]
+    add rdi, rax
+    # Compute slot length: find NUL in slot.
+    mov rsi, rdi
+    xor ecx, ecx
+cu_slot_len_loop:
+    cmp ecx, USER_EMAIL_LEN
+    jae cu_slot_len_done
+    movzx eax, byte ptr [rdi]
+    test al, al
+    jz cu_slot_len_done
+    inc rcx
+    inc rdi
+    jmp cu_slot_len_loop
+cu_slot_len_done:
+    cmp rcx, r11
+    jne cu_dup_next
+    push r10
+    push rcx
+    lea rdi, [rel form_value_buf]
+    call buffers_equal
+    pop rcx
+    pop r10
+    test eax, eax
+    jnz cu_email_taken
+cu_dup_next:
+    inc r10
+    jmp cu_dup_loop
+
+cu_store:
+    # Copy email into user_emails[rbx].
+    # Compute offset = rbx * 120.
+    mov rax, rbx
+    imul rax, USER_EMAIL_LEN
+    lea rdi, [rel user_emails]
+    add rdi, rax
+    # Zero the slot first (rbx=user_count, rdi=slot pointer).
+    push rcx
+    push rdi
+    mov ecx, USER_EMAIL_LEN
+    xor eax, eax
+cu_zero_slot:
+    test ecx, ecx
+    jz cu_zero_done
+    mov byte ptr [rdi], al
+    inc rdi
+    dec ecx
+    jmp cu_zero_slot
+cu_zero_done:
+    pop rdi
+    pop rcx
+    lea rsi, [rel form_value_buf]
+    mov rcx, [rel form_value_len]
+    mov rcx, [rel form_value_len]
+cu_copy_email:
+    test rcx, rcx
+    jz cu_email_copied
+    mov al, byte ptr [rsi]
+    mov byte ptr [rdi], al
+    inc rsi
+    inc rdi
+    dec rcx
+    jmp cu_copy_email
+cu_email_copied:
+    inc qword ptr [rel user_count]
+
+    # Build JSON: {"id":"user_x86_N","object":"user","email":"...","request_id":"req_x86_N"}
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_user_id_prefix]
+    mov ecx, json_user_id_prefix_len
+    call copy_to_r14
+    mov rax, [rel user_count]
+    call append_u64_to_r14
+    lea rsi, [rel json_user_object_email]
+    mov ecx, json_user_object_email_len
+    call copy_to_r14
+    lea rsi, [rel form_value_buf]
+    mov rcx, [rel form_value_len]
+    call copy_to_r14
+    lea rsi, [rel json_user_email_reqid_mid]
+    mov ecx, json_user_email_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_201]
+    mov ecx, status_201_len
+    call send_json
+    ret
+
+cu_missing_email:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_email]
+    mov r10d, msg_missing_email_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+
+cu_email_taken:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_email_taken]
+    mov r10d, msg_email_taken_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_409]
+    mov ecx, status_409_len
+    call send_json
+    ret
+
+cu_email_too_long:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_email_too_long]
+    mov r10d, msg_email_too_long_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+
+cu_table_full:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_table_full]
+    mov r10d, msg_table_full_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_507]
+    mov ecx, status_507_len
+    call send_json
+    ret
+
+# --- POST /v1/accounts ---
+create_account:
+    # Validate Content-Type.
+    mov rsi, rbx
+    mov rcx, [rel header_len]
+    lea rdi, [rel ct_name]
+    mov edx, ct_name_len
+    call find_sequence_ci
+    test rax, rax
+    jz respond_400
+    mov [rel hdr_tmp_first], rax
+    mov rsi, rax
+    inc rsi
+    mov r8, rbx
+    add r8, [rel header_len]
+    cmp rsi, r8
+    jae ca_ct_no_dup
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel ct_name]
+    mov edx, ct_name_len
+    call find_sequence_ci
+    test rax, rax
+    jnz respond_400
+ca_ct_no_dup:
+    mov rax, [rel hdr_tmp_first]
+    add rax, ct_name_len
+    mov rsi, rax
+    mov r8, rbx
+    add r8, [rel header_len]
+ca_ct_skip:
+    cmp rsi, r8
+    jae respond_400
+    movzx eax, byte ptr [rsi]
+    cmp al, 32
+    je ca_ct_skip_inc
+    cmp al, 9
+    je ca_ct_skip_inc
+    jmp ca_ct_val
+ca_ct_skip_inc:
+    inc rsi
+    jmp ca_ct_skip
+ca_ct_val:
+    mov rdx, rsi
+ca_ct_eol:
+    cmp rdx, r8
+    jae respond_400
+    movzx eax, byte ptr [rdx]
+    cmp al, 13
+    je ca_ct_eol_found
+    cmp al, 10
+    je ca_ct_eol_found
+    inc rdx
+    jmp ca_ct_eol
+ca_ct_eol_found:
+    mov rcx, rdx
+ca_ct_trim:
+    cmp rcx, rsi
+    jbe ca_ct_done
+    movzx eax, byte ptr [rcx - 1]
+    cmp al, 32
+    je ca_ct_trim_dec
+    cmp al, 9
+    je ca_ct_trim_dec
+    jmp ca_ct_done
+ca_ct_trim_dec:
+    dec rcx
+    jmp ca_ct_trim
+ca_ct_done:
+    mov rax, rcx
+    sub rax, rsi
+    cmp rax, ct_expected_len
+    jne respond_400
+    mov rcx, rax
+    lea rdi, [rel ct_expected]
+    call buffers_equal
+    test eax, eax
+    jz respond_400
+
+    # Parse form body.
+    mov rax, rbx
+    add rax, [rel header_len]
+    mov [rel body_ptr], rax
+    mov rdx, rbx
+    add rdx, [rel request_len]
+    mov [rel body_end], rdx
+
+    # Parse user_id= field.
+    lea rdi, [rel user_id_key]
+    mov edx, user_id_key_len
+    call parse_form_value
+    test eax, eax
+    jz ca_missing_user_id
+    # Validate user_id = user_x86_N.
+    cmp qword ptr [rel form_value_len], 10
+    jb ca_bad_user_id
+    cmp qword ptr [rel form_value_len], 11
+    ja ca_bad_user_id
+    lea rsi, [rel form_value_buf]
+    lea rdi, [rel user_x86_prefix]
+    mov rcx, user_x86_prefix_len
+    call buffers_equal
+    test eax, eax
+    jz ca_bad_user_id
+    # Extract user number (1-2 digits after prefix).
+    lea rsi, [rel form_value_buf]
+    add rsi, user_x86_prefix_len
+    xor rax, rax
+    xor ecx, ecx
+ca_uid_digits:
+    cmp ecx, 2
+    jae ca_uid_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb ca_uid_done
+    cmp dl, '9'
+    ja ca_uid_done
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    inc ecx
+    jmp ca_uid_digits
+ca_uid_done:
+    test ecx, ecx
+    jz ca_bad_user_id
+    cmp rax, 1
+    jb ca_bad_user_id
+    cmp rax, [rel user_count]
+    ja ca_bad_user_id
+    mov [rel user_number], rax
+
+    # Parse currency= field.
+    lea rdi, [rel currency_key]
+    mov edx, currency_key_len
+    call parse_form_value
+    test eax, eax
+    jz ca_missing_currency
+    # Validate currency = usd.
+    cmp qword ptr [rel form_value_len], 3
+    jne ca_bad_currency
+    lea rsi, [rel form_value_buf]
+    cmp byte ptr [rsi], 'u'
+    jne ca_bad_currency
+    cmp byte ptr [rsi + 1], 's'
+    jne ca_bad_currency
+    cmp byte ptr [rsi + 2], 'd'
+    jne ca_bad_currency
+
+    # Check capacity.
+    mov rbx, [rel acct_count]
+    cmp rbx, ACCT_TABLE_CAP
+    jae ca_table_full
+
+    # Store account.
+    lea rdi, [rel acct_user_ids]
+    mov rax, [rel user_number]
+    mov [rdi + rbx * 8], rax
+    lea rdi, [rel acct_currencies]
+    mov dword ptr [rdi + rbx * 4], 0x00647375  # "usd\0" little-endian
+    lea rdi, [rel acct_balances]
+    mov qword ptr [rdi + rbx * 8], 0
+    inc qword ptr [rel acct_count]
+
+    # Create ledger entry: txn_x86_N, account=acct_x86_N, amount=0, type=account_opened.
+    mov r10, [rel acct_count]
+    dec r10
+    lea rdi, [rel txn_account_ids]
+    lea rax, [r10 + 1]
+    mov [rdi + r10 * 8], rax
+    lea rdi, [rel txn_amounts]
+    mov qword ptr [rdi + r10 * 8], 0
+    lea rdi, [rel txn_types]
+    mov qword ptr [rdi + r10 * 8], 1    # 1 = account_opened
+    inc qword ptr [rel txn_count]
+
+    # Build JSON: {"id":"acct_x86_N","object":"account","user_id":"user_x86_M","currency":"usd","balance":0,"request_id":"req_x86_N"}
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_acct_id_prefix]
+    mov ecx, json_acct_id_prefix_len
+    call copy_to_r14
+    mov rax, [rel acct_count]
+    call append_u64_to_r14
+    lea rsi, [rel json_acct_object_userid]
+    mov ecx, json_acct_object_userid_len
+    call copy_to_r14
+    mov rax, [rel user_number]
+    call append_u64_to_r14
+    lea rsi, [rel json_acct_currency_mid]
+    mov ecx, json_acct_currency_mid_len
+    call copy_to_r14
+    lea rsi, [rel form_value_buf]
+    mov ecx, 3
+    call copy_to_r14
+    lea rsi, [rel json_acct_balance_mid]
+    mov ecx, json_acct_balance_mid_len
+    call copy_to_r14
+    mov eax, '0'
+    mov byte ptr [r14], al
+    inc r14
+    lea rsi, [rel json_acct_reqid_mid]
+    mov ecx, json_acct_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_201]
+    mov ecx, status_201_len
+    call send_json
+    ret
+
+ca_missing_user_id:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_user_id]
+    mov r10d, msg_missing_user_id_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+
+ca_bad_user_id:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_user_not_found]
+    mov r10d, msg_user_not_found_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_404]
+    mov ecx, status_404_len
+    call send_json
+    ret
+
+ca_missing_currency:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_missing_currency]
+    mov r10d, msg_missing_currency_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+
+ca_bad_currency:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_invalid_currency]
+    mov r10d, msg_invalid_currency_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_400]
+    mov ecx, status_400_len
+    call send_json
+    ret
+
+ca_table_full:
+    lea rsi, [rel type_param_error]
+    mov ecx, type_param_error_len
+    lea rdx, [rel code_param_error]
+    mov r8d, code_param_error_len
+    lea r9, [rel msg_table_full]
+    mov r10d, msg_table_full_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_507]
+    mov ecx, status_507_len
+    call send_json
+    ret
+
+# --- GET /v1/accounts/acct_x86_N ---
+retrieve_account:
+    # Build JSON: {"id":"acct_x86_N","object":"account","user_id":"user_x86_M","currency":"usd","balance":0,"request_id":"req_x86_N"}
+    mov rax, [rel account_id]
+    dec rax
+    mov rbx, rax
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_acct_id_prefix]
+    mov ecx, json_acct_id_prefix_len
+    call copy_to_r14
+    mov rax, [rel account_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_acct_object_userid]
+    mov ecx, json_acct_object_userid_len
+    call copy_to_r14
+    lea rdi, [rel acct_user_ids]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_acct_currency_mid]
+    mov ecx, json_acct_currency_mid_len
+    call copy_to_r14
+    lea rdi, [rel acct_currencies]
+    lea rsi, [rdi + rbx * 4]
+    mov ecx, 3
+    call copy_to_r14
+    lea rsi, [rel json_acct_balance_mid]
+    mov ecx, json_acct_balance_mid_len
+    call copy_to_r14
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_acct_reqid_mid]
+    mov ecx, json_acct_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+
+# --- GET /v1/accounts/acct_x86_N/balance ---
+retrieve_account_balance:
+    mov rax, [rel account_id]
+    dec rax
+    mov rbx, rax
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_balance_value]
+    mov ecx, json_balance_value_len
+    call copy_to_r14
+    lea rdi, [rel acct_balances]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_balance_reqid_mid]
+    mov ecx, json_balance_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+
+# --- GET /v1/transactions/txn_x86_N ---
+retrieve_transaction:
+    lea rsi, [rbx + get_txns_route_len]
+    mov r8, rbx
+    add r8, [rel request_len]
+    call extract_txn_id
+    cmp rax, 1
+    jb respond_404
+    cmp rax, [rel txn_count]
+    ja respond_txn_not_found
+    mov rbx, rax
+    dec rbx
+    # Build JSON: {"id":"txn_x86_N","object":"transaction","account_id":"acct_x86_M","amount":0,"type":"account_opened","request_id":"req_x86_N"}
+    lea r14, [rel json_buf]
+    lea rsi, [rel json_txn_id_prefix]
+    mov ecx, json_txn_id_prefix_len
+    call copy_to_r14
+    lea rax, [rbx + 1]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_object_acctid]
+    mov ecx, json_txn_object_acctid_len
+    call copy_to_r14
+    lea rdi, [rel txn_account_ids]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_amount_mid]
+    mov ecx, json_txn_amount_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_amounts]
+    mov rax, [rdi + rbx * 8]
+    call append_u64_to_r14
+    lea rsi, [rel json_txn_type_mid]
+    mov ecx, json_txn_type_mid_len
+    call copy_to_r14
+    lea rdi, [rel txn_types]
+    cmp qword ptr [rdi + rbx * 8], 1
+    jne txn_type_other
+    lea rsi, [rel json_txn_type_opened]
+    mov ecx, json_txn_type_opened_len
+    call copy_to_r14
+    jmp txn_type_done
+txn_type_other:
+    # Unknown type; should not happen.
+    lea rsi, [rel json_txn_type_opened]
+    mov ecx, json_txn_type_opened_len
+    call copy_to_r14
+txn_type_done:
+    lea rsi, [rel json_txn_reqid_mid]
+    mov ecx, json_txn_reqid_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov r8, rdx
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_200]
+    mov ecx, status_200_len
+    call send_json
+    ret
+
+respond_txn_not_found:
+    lea rsi, [rel type_notfound]
+    mov ecx, type_notfound_len
+    lea rdx, [rel code_notfound]
+    mov r8d, code_notfound_len
+    lea r9, [rel msg_txn_not_found]
+    mov r10d, msg_txn_not_found_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
+    lea rsi, [rel status_404]
+    mov ecx, status_404_len
+    call send_json
     ret
 
 exit_failure:

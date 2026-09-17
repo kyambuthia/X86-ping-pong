@@ -396,4 +396,185 @@ if ! grep -Fq 'Request-Id: req_x86_' "$TMP_DIR/raw.resp"; then
 fi
 printf '%s\n' 'ok - duplicate content length rejected'
 
+# --- Users / Accounts / Ledger tests ---
+
+# POST /v1/users - create first user
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'email=alice@example.com' \
+    'http://127.0.0.1:4242/v1/users'
+assert_status 201
+assert_body_contains '"id":"user_x86_1"'
+assert_body_contains '"object":"user"'
+assert_body_contains '"email":"alice@example.com"'
+printf '%s\n' 'ok - create user 1'
+
+# POST /v1/users - create second user
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'email=bob@example.com' \
+    'http://127.0.0.1:4242/v1/users'
+assert_status 201
+assert_body_contains '"id":"user_x86_2"'
+assert_body_contains '"email":"bob@example.com"'
+printf '%s\n' 'ok - create user 2'
+
+# POST /v1/users - missing email field
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'name=charlie' \
+    'http://127.0.0.1:4242/v1/users'
+assert_status 400
+assert_body_contains 'missing required field: email'
+printf '%s\n' 'ok - user missing email'
+
+# POST /v1/users - duplicate email
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'email=alice@example.com' \
+    'http://127.0.0.1:4242/v1/users'
+assert_status 409
+assert_body_contains 'email already taken'
+printf '%s\n' 'ok - duplicate email rejected'
+
+# POST /v1/accounts - create account for user 1
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'user_id=user_x86_1&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts'
+assert_status 201
+assert_body_contains '"id":"acct_x86_1"'
+assert_body_contains '"object":"account"'
+assert_body_contains '"user_id":"user_x86_1"'
+assert_body_contains '"currency":"usd"'
+assert_body_contains '"balance":0'
+printf '%s\n' 'ok - create account 1'
+
+# POST /v1/accounts - create account for user 2
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'user_id=user_x86_2&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts'
+assert_status 201
+assert_body_contains '"id":"acct_x86_2"'
+assert_body_contains '"user_id":"user_x86_2"'
+printf '%s\n' 'ok - create account 2'
+
+# POST /v1/accounts - missing user_id
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts'
+assert_status 400
+assert_body_contains 'missing required field: user_id'
+printf '%s\n' 'ok - account missing user_id'
+
+# POST /v1/accounts - missing currency
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'user_id=user_x86_1' \
+    'http://127.0.0.1:4242/v1/accounts'
+assert_status 400
+assert_body_contains 'missing required field: currency'
+printf '%s\n' 'ok - account missing currency'
+
+# POST /v1/accounts - invalid user_id (non-existent)
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'user_id=user_x86_9&currency=usd' \
+    'http://127.0.0.1:4242/v1/accounts'
+assert_status 404
+assert_body_contains 'user not found'
+printf '%s\n' 'ok - account with invalid user'
+
+# POST /v1/accounts - invalid currency
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'user_id=user_x86_1&currency=eur' \
+    'http://127.0.0.1:4242/v1/accounts'
+assert_status 400
+assert_body_contains 'currency must be usd'
+printf '%s\n' 'ok - account with invalid currency'
+
+# GET /v1/accounts/acct_x86_1 - retrieve account
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1'
+assert_status 200
+assert_body_contains '"id":"acct_x86_1"'
+assert_body_contains '"object":"account"'
+assert_body_contains '"user_id":"user_x86_1"'
+assert_body_contains '"currency":"usd"'
+assert_body_contains '"balance":0'
+printf '%s\n' 'ok - retrieve account'
+
+# GET /v1/accounts/acct_x86_1/balance - retrieve balance
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1/balance'
+assert_status 200
+assert_body_contains '"balance":0'
+printf '%s\n' 'ok - retrieve account balance'
+
+# GET /v1/accounts/acct_x86_99 - non-existent account
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_99'
+assert_status 404
+assert_body_contains 'resource not found'
+printf '%s\n' 'ok - non-existent account returns 404'
+
+# GET /v1/accounts/acct_x86_99/balance - non-existent account balance
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_99/balance'
+assert_status 404
+assert_body_contains 'resource not found'
+printf '%s\n' 'ok - non-existent account balance returns 404'
+
+# GET /v1/transactions/txn_x86_1 - retrieve ledger entry (created with account 1)
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_1'
+assert_status 200
+assert_body_contains '"id":"txn_x86_1"'
+assert_body_contains '"object":"transaction"'
+assert_body_contains '"account_id":"acct_x86_1"'
+assert_body_contains '"amount":0'
+assert_body_contains '"type":"account_opened"'
+printf '%s\n' 'ok - retrieve ledger entry'
+
+# GET /v1/transactions/txn_x86_99 - non-existent transaction
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_99'
+assert_status 404
+assert_body_contains 'transaction not found'
+printf '%s\n' 'ok - non-existent transaction returns 404'
+
+# Verify request IDs on new routes
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/accounts/acct_x86_1'
+assert_header_contains 'Request-Id: req_x86_'
+assert_body_contains '"request_id":"req_x86_'
+printf '%s\n' 'ok - account response carries request ID'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/transactions/txn_x86_1'
+assert_header_contains 'Request-Id: req_x86_'
+assert_body_contains '"request_id":"req_x86_'
+printf '%s\n' 'ok - transaction response carries request ID'
+
 printf '%s\n' 'all integration tests passed'
