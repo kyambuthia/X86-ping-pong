@@ -3,9 +3,12 @@ CC ?= gcc
 LD ?= ld
 BUILD := build
 
-.PHONY: all clean
+.PHONY: all clean test
 
 all: $(BUILD)/x86pay_server $(BUILD)/x86pay_client
+
+test: all
+	./tests/integration.sh
 
 $(BUILD):
 	mkdir -p $(BUILD)

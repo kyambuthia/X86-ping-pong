@@ -37,6 +37,15 @@ make
 ./build/x86pay_server
 ```
 
+Run the local integration suite with:
+
+```sh
+make test
+```
+
+The test suite starts and stops its own server and does not require external
+services.
+
 In another terminal:
 
 ```sh
