@@ -63,6 +63,26 @@ Common statuses are `400` invalid request, `401` authentication failure,
 `402` insufficient funds, `404` missing resource, `409` conflict, `413` request
 too large, and `507` bounded table capacity exhausted.
 
+The stable error contract is:
+
+| Status | `type` | `code` | Typical `message` |
+| --- | --- | --- | --- |
+| 400 | `invalid_request_error` | `invalid_request` | `invalid request`, `missing required field: ...`, `currency must be usd`, or a route-specific validation message |
+| 400 | `idempotency_error` | `idempotency_key_in_use` | `idempotency key reused with different parameters` |
+| 401 | `authentication_error` | `authentication_required` | `authentication required` |
+| 402 | `invalid_request_error` | `insufficient_funds` | `insufficient funds` |
+| 404 | `invalid_request_error` | `resource_not_found` | `resource not found`, `transaction not found`, or `event not found` |
+| 409 | `invalid_request_error` | `invalid_request` | `email already taken` |
+| 413 | `invalid_request_error` | `request_too_large` | `request body too large` |
+| 507 | `api_error` | `idempotency_table_full` | `idempotency table full` |
+| 507 | `invalid_request_error` | `invalid_request` | `table full` |
+
+Every error also includes `request_id`, and the same value is returned in the
+`Request-Id` header. Capacity errors are returned before state mutation. The
+`idempotency_table_full` variant applies to the keyed table for the route;
+the `table full` variant applies to bounded users, accounts, transactions, and
+events.
+
 ## Users
 
 ### Create a user
@@ -275,8 +295,23 @@ The response has the form:
 
 Repeating the same idempotency key with the same parameters replays the
 original response. Reusing it with different parameters returns an
-idempotency error. Idempotency is currently implemented for PaymentIntents;
-clients must not assume deposit, send, or withdraw requests are retry-safe.
+idempotency error. The key is scoped to the route and the money-movement
+account context, so a key cannot silently replay a transfer for another
+account or recipient.
+
+Deposit, send, and withdraw requests support the same behavior:
+
+```http
+POST /v1/accounts/acct_x86_1/deposit
+Idempotency-Key: deposit-1
+Content-Type: application/x-www-form-urlencoded
+
+amount=5000&currency=usd
+```
+
+Retries replay the original transaction response without changing balances or
+consuming another transaction/event slot. Failed requests are not stored as
+successful idempotency records.
 
 Retrieve a PaymentIntent with:
 
@@ -293,7 +328,9 @@ The current process uses fixed in-memory tables:
 - 16 transactions
 - 16 events
 - 8 stored PaymentIntent idempotency keys
+- 8 stored idempotency keys per money route (deposit, send, and withdraw)
 
 Capacity failures return `507`. A rejected capacity request does not mutate the
 associated account, balance, transaction, or event state. Restarting the
-server clears all state.
+associated account, balance, transaction, or event state. All tables are
+process-local; restarting the server clears all state.
