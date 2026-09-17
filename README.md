@@ -21,17 +21,17 @@ Supported routes:
 ```text
 POST /v1/users
 POST /v1/accounts
-GET  /v1/accounts/{account_id}
-GET  /v1/accounts/{account_id}/balance
-POST /v1/accounts/{account_id}/deposit
-POST /v1/accounts/{account_id}/send
-POST /v1/accounts/{account_id}/withdraw
-GET  /v1/transactions/{transaction_id}
-POST /v1/transactions/{transaction_id}/reverse
+GET  /v1/accounts/{account_uid}
+GET  /v1/accounts/{account_uid}/balance
+POST /v1/accounts/{account_uid}/deposit
+POST /v1/accounts/{account_uid}/send
+POST /v1/accounts/{account_uid}/withdraw
+GET  /v1/transactions/{transaction_uid}
+POST /v1/transactions/{transaction_uid}/reverse
 GET  /v1/events
-GET  /v1/events/{event_id}
+GET  /v1/events/{event_uid}
 POST /v1/payment_intents
-GET  /v1/payment_intents/{payment_intent_id}
+GET  /v1/payment_intents/{payment_intent_uid}
 ```
 
 All requests require:
@@ -48,6 +48,21 @@ Content-Type: application/x-www-form-urlencoded
 
 See [`docs/API.md`](docs/API.md) for request fields, response shapes, errors,
 capacity limits, and lifecycle examples.
+
+Resource identifiers are opaque, boot-scoped UIDs. The server emits a
+16-character lowercase hexadecimal token with a resource prefix:
+
+```text
+usr_<16 hex characters>   user
+acct_<16 hex characters>  account
+txn_<16 hex characters>   transaction
+evt_<16 hex characters>   event
+pi_<16 hex characters>    PaymentIntent
+```
+
+Treat IDs as opaque strings: capture them from responses and pass them back to
+later requests. They are intentionally not sequential, and the current
+in-memory server generates a new UID namespace on each restart.
 
 ## Build and run
 
@@ -77,19 +92,21 @@ base=http://127.0.0.1:4242
 key='Authorization: Bearer x86_test_key'
 form='Content-Type: application/x-www-form-urlencoded'
 
-curl -sS -X POST "$base/v1/users" \
+user_json=$(curl -sS -X POST "$base/v1/users" \
   -H "$key" -H "$form" \
-  -d 'email=alice@example.com'
+  -d 'email=alice@example.com')
+user_id=$(printf '%s' "$user_json" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
 
-curl -sS -X POST "$base/v1/accounts" \
+account_json=$(curl -sS -X POST "$base/v1/accounts" \
   -H "$key" -H "$form" \
-  -d 'user_id=user_x86_1&currency=usd'
+  -d "user_id=$user_id&currency=usd")
+account_id=$(printf '%s' "$account_json" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
 
-curl -sS -X POST "$base/v1/accounts/acct_x86_1/deposit" \
+curl -sS -X POST "$base/v1/accounts/$account_id/deposit" \
   -H "$key" -H "$form" \
   -d 'amount=5000&currency=usd'
 
-curl -sS "$base/v1/accounts/acct_x86_1/balance" \
+curl -sS "$base/v1/accounts/$account_id/balance" \
   -H "$key"
 ```
 

@@ -7,6 +7,24 @@
 X86 Pay is a bounded, in-memory x86-64 assembly implementation. It is for
 local testing only and does not process real payments.
 
+## Resource identifiers
+
+Resource IDs are opaque, boot-scoped UIDs. Capture each ID from the response
+that created the resource and pass it unchanged to later requests. The public
+formats are:
+
+| Resource | Format |
+| --- | --- |
+| User | `usr_<16 lowercase hexadecimal characters>` |
+| Account | `acct_<16 lowercase hexadecimal characters>` |
+| Transaction | `txn_<16 lowercase hexadecimal characters>` |
+| Event | `evt_<16 lowercase hexadecimal characters>` |
+| PaymentIntent | `pi_<16 lowercase hexadecimal characters>` |
+
+The examples below use synthetic IDs for readability. They are not valid
+across server restarts; the current in-memory implementation creates a new UID
+namespace at boot and does not persist resources.
+
 ## Request conventions
 
 Every request requires:
@@ -98,7 +116,7 @@ Response: `201 Created`
 
 ```json
 {
-  "id": "user_x86_1",
+  "id": "usr_7b4e2d1c9a806f01",
   "object": "user",
   "email": "alice@example.com",
   "request_id": "req_x86_3"
@@ -116,16 +134,16 @@ uniqueness is enforced.
 POST /v1/accounts
 Content-Type: application/x-www-form-urlencoded
 
-user_id=user_x86_1&currency=usd
+user_id=usr_7b4e2d1c9a806f01&currency=usd
 ```
 
 Response: `201 Created`
 
 ```json
 {
-  "id": "acct_x86_1",
+  "id": "acct_7b4e2d1c9a806f01",
   "object": "account",
-  "user_id": "user_x86_1",
+  "user_id": "usr_7b4e2d1c9a806f01",
   "currency": "usd",
   "balance": 0,
   "request_id": "req_x86_4"
@@ -135,13 +153,13 @@ Response: `201 Created`
 ### Retrieve an account
 
 ```http
-GET /v1/accounts/acct_x86_1
+GET /v1/accounts/acct_7b4e2d1c9a806f01
 ```
 
 ### Retrieve a balance
 
 ```http
-GET /v1/accounts/acct_x86_1/balance
+GET /v1/accounts/acct_7b4e2d1c9a806f01/balance
 ```
 
 Response:
@@ -156,7 +174,7 @@ Response:
 ## Deposits
 
 ```http
-POST /v1/accounts/acct_x86_1/deposit
+POST /v1/accounts/acct_7b4e2d1c9a806f01/deposit
 Content-Type: application/x-www-form-urlencoded
 
 amount=5000&currency=usd
@@ -166,9 +184,9 @@ Response: `200 OK`
 
 ```json
 {
-  "id": "txn_x86_2",
+  "id": "txn_7b4e2d1c9a806f03",
   "object": "transaction",
-  "account_id": "acct_x86_1",
+  "account_id": "acct_7b4e2d1c9a806f01",
   "amount": 5000,
   "type": "deposit",
   "request_id": "req_x86_6"
@@ -178,20 +196,20 @@ Response: `200 OK`
 ## Sending money
 
 ```http
-POST /v1/accounts/acct_x86_1/send
+POST /v1/accounts/acct_7b4e2d1c9a806f01/send
 Content-Type: application/x-www-form-urlencoded
 
-to_account_id=acct_x86_2&amount=1000&currency=usd
+to_account_id=acct_7b4e2d1c9a806f02&amount=1000&currency=usd
 ```
 
 Response:
 
 ```json
 {
-  "id": "txn_x86_3",
+  "id": "txn_7b4e2d1c9a806f04",
   "object": "transaction",
-  "sender_id": "acct_x86_1",
-  "recipient_id": "acct_x86_2",
+  "sender_id": "acct_7b4e2d1c9a806f01",
+  "recipient_id": "acct_7b4e2d1c9a806f02",
   "amount": 1000,
   "type": "transfer",
   "request_id": "req_x86_7"
@@ -204,7 +222,7 @@ either balance or append a ledger entry.
 ## Withdrawals
 
 ```http
-POST /v1/accounts/acct_x86_1/withdraw
+POST /v1/accounts/acct_7b4e2d1c9a806f01/withdraw
 Content-Type: application/x-www-form-urlencoded
 
 amount=250&currency=usd
@@ -217,7 +235,7 @@ The response is a transaction with `type` equal to `withdrawal`.
 Retrieve a transaction by ID:
 
 ```http
-GET /v1/transactions/txn_x86_3
+GET /v1/transactions/txn_7b4e2d1c9a806f04
 ```
 
 Transaction types are:
@@ -233,7 +251,7 @@ Transaction types are:
 Reverse an eligible transaction:
 
 ```http
-POST /v1/transactions/txn_x86_3/reverse
+POST /v1/transactions/txn_7b4e2d1c9a806f04/reverse
 Authorization: Bearer x86_test_key
 ```
 
@@ -254,10 +272,10 @@ Response:
   "object": "list",
   "data": [
     {
-      "id": "evt_x86_1",
+      "id": "evt_7b4e2d1c9a806f01",
       "object": "event",
       "type": "deposit.created",
-      "transaction_id": "txn_x86_2",
+      "transaction_id": "txn_7b4e2d1c9a806f03",
       "amount": 5000,
       "currency": "usd"
     }
@@ -266,7 +284,7 @@ Response:
 }
 ```
 
-Retrieve one event with `GET /v1/events/evt_x86_1`.
+Retrieve one event with `GET /v1/events/evt_7b4e2d1c9a806f01`.
 
 ## PaymentIntents
 
@@ -284,7 +302,7 @@ The response has the form:
 
 ```json
 {
-  "id": "pi_x86_1",
+  "id": "pi_7b4e2d1c9a806f01",
   "object": "payment_intent",
   "amount": 2000,
   "currency": "usd",
@@ -302,7 +320,7 @@ account or recipient.
 Deposit, send, and withdraw requests support the same behavior:
 
 ```http
-POST /v1/accounts/acct_x86_1/deposit
+POST /v1/accounts/acct_7b4e2d1c9a806f01/deposit
 Idempotency-Key: deposit-1
 Content-Type: application/x-www-form-urlencoded
 
@@ -316,7 +334,7 @@ successful idempotency records.
 Retrieve a PaymentIntent with:
 
 ```http
-GET /v1/payment_intents/pi_x86_1
+GET /v1/payment_intents/pi_7b4e2d1c9a806f01
 ```
 
 ## Capacity and persistence
@@ -331,6 +349,5 @@ The current process uses fixed in-memory tables:
 - 8 stored idempotency keys per money route (deposit, send, and withdraw)
 
 Capacity failures return `507`. A rejected capacity request does not mutate the
-associated account, balance, transaction, or event state. Restarting the
 associated account, balance, transaction, or event state. All tables are
 process-local; restarting the server clears all state.
