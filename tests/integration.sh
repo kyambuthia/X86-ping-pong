@@ -127,6 +127,50 @@ printf '%s\n' 'ok - authentication failure'
 
 request \
     -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type:' \
+    --data 'amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - missing form content type'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=12xyz&currency=usd' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - malformed amount'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&amount=200&currency=usd' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - duplicate form field'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=usd&extra=1' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - unknown form field'
+
+request \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=usd&note=Authorization%3A%20Bearer%20x86_test_key' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 401
+assert_body_contains 'authentication required'
+printf '%s\n' 'ok - credentials in body are not authentication'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
     'http://127.0.0.1:4242/nope'
 assert_status 404
 assert_body_contains 'resource not found'

@@ -14,12 +14,12 @@ reuse_value:
     .long 1
 
 auth_header:
-    .ascii "Authorization: Bearer x86_test_key"
+    .ascii "\r\nAuthorization: Bearer x86_test_key\r\n"
 auth_header_end:
 .equ auth_header_len, auth_header_end - auth_header
 
 idem_header:
-    .ascii "Idempotency-Key: "
+    .ascii "\r\nIdempotency-Key: "
 idem_header_end:
 .equ idem_header_len, idem_header_end - idem_header
 
@@ -34,9 +34,14 @@ get_route_end:
 .equ get_route_len, get_route_end - get_route
 
 content_length_header:
-    .ascii "Content-Length: "
+    .ascii "\r\nContent-Length: "
 content_length_header_end:
 .equ content_length_header_len, content_length_header_end - content_length_header
+
+content_type_header:
+    .ascii "\r\nContent-Type: application/x-www-form-urlencoded\r\n"
+content_type_header_end:
+.equ content_type_header_len, content_type_header_end - content_type_header
 
 header_end_marker:
     .ascii "\r\n\r\n"
@@ -158,6 +163,8 @@ stored_idem:
 
 request_len:
     .quad 0
+header_len:
+    .quad 0
 body_ptr:
     .quad 0
 body_end:
@@ -174,6 +181,15 @@ stored_idem_amount:
     .quad 0
 stored_idem_currency:
     .long 0
+
+form_amount_seen:
+    .quad 0
+form_currency_seen:
+    .quad 0
+form_token_end:
+    .quad 0
+form_token_len:
+    .quad 0
 
 intent_count:
     .quad 0
@@ -305,6 +321,7 @@ read_request_more:
     mov r15, rax
     sub r15, rbx
     add r15, header_end_marker_len
+    mov [rel header_len], r15
 
     # Content-Length is required for a body. A request without it is treated
     # as a zero-length request, which is sufficient for the GET endpoint.
@@ -421,29 +438,32 @@ handle_request:
     jmp respond_404
 
 create_intent:
-    # Locate the form body.
+    # POST bodies must use the form encoding understood by this slice.
     mov rsi, rbx
-    mov rcx, [rel request_len]
-    lea rdi, [rel header_end_marker]
-    mov edx, header_end_marker_len
+    mov rcx, [rel header_len]
+    lea rdi, [rel content_type_header]
+    mov edx, content_type_header_len
     call find_sequence
     test rax, rax
     jz respond_400
-    add rax, header_end_marker_len
+
+    # Locate the form body.
+    mov rax, rbx
+    add rax, [rel header_len]
     mov [rel body_ptr], rax
     mov rdx, rbx
     add rdx, [rel request_len]
     mov [rel body_end], rdx
 
-    # Parse amount and currency from the application/x-www-form-urlencoded body.
-    call parse_amount
-    test eax, eax
-    jz respond_400
-    call parse_currency
+    # Parse exactly amount=<digits>&currency=<three lowercase letters> fields.
+    call parse_form
     test eax, eax
     jz respond_400
 
+    lea rbx, [rel request_buf]
     call parse_idempotency
+    test eax, eax
+    jz respond_400
     call check_idempotency
     test rax, rax
     js respond_idem_conflict
@@ -523,90 +543,142 @@ id_path_ended:
     call send_intent_response
     ret
 
-# parse_amount: returns EAX=1 on success, EAX=0 on failure.
-parse_amount:
-    mov rsi, [rel body_ptr]
-    mov rcx, [rel body_end]
-    sub rcx, rsi
+# parse_form: returns EAX=1 for exactly one amount and currency field.
+parse_form:
+    mov qword ptr [rel form_amount_seen], 0
+    mov qword ptr [rel form_currency_seen], 0
+    mov r14, [rel body_ptr]
+    mov r15, [rel body_end]
+    cmp r14, r15
+    je parse_form_bad
+
+parse_form_scan:
+    mov rdx, r14
+
+parse_form_find_separator:
+    cmp rdx, r15
+    jae parse_form_token_end
+    cmp byte ptr [rdx], '&'
+    je parse_form_token_end
+    inc rdx
+    jmp parse_form_find_separator
+
+parse_form_token_end:
+    mov [rel form_token_end], rdx
+    mov rcx, rdx
+    sub rcx, r14
+    test rcx, rcx
+    jz parse_form_bad
+    mov [rel form_token_len], rcx
+
+    # Try amount= at the beginning of this token.
+    mov rsi, r14
+    mov rcx, [rel form_token_len]
     lea rdi, [rel amount_key]
     mov edx, amount_key_len
     call find_sequence
-    test rax, rax
-    jz parse_amount_bad
-    add rax, amount_key_len
-    mov r8, [rel body_end]
-    xor rdx, rdx
-    xor r10d, r10d
+    cmp rax, r14
+    je parse_form_amount
 
-parse_amount_digits:
-    cmp rax, r8
-    jae parse_amount_done
-    movzx r9d, byte ptr [rax]
-    cmp r9b, '0'
-    jb parse_amount_done
-    cmp r9b, '9'
-    ja parse_amount_done
-    imul rdx, rdx, 10
-    sub r9d, '0'
-    add rdx, r9
-    inc rax
-    inc r10
-    jmp parse_amount_digits
-
-parse_amount_done:
-    test r10, r10
-    jz parse_amount_bad
-    test rdx, rdx
-    jz parse_amount_bad
-    mov [rel current_amount], rdx
-    mov eax, 1
-    ret
-
-parse_amount_bad:
-    xor eax, eax
-    ret
-
-# parse_currency: returns EAX=1 on success, EAX=0 on failure.
-parse_currency:
-    mov rsi, [rel body_ptr]
-    mov rcx, [rel body_end]
-    sub rcx, rsi
+    # Try currency= at the beginning of this token.
+    mov rsi, r14
+    mov rcx, [rel form_token_len]
     lea rdi, [rel currency_key]
     mov edx, currency_key_len
     call find_sequence
-    test rax, rax
-    jz parse_currency_bad
-    add rax, currency_key_len
-    mov r8, [rel body_end]
-    mov r9, rax
-    add r9, 3
-    cmp r9, r8
-    ja parse_currency_bad
+    cmp rax, r14
+    je parse_form_currency
+    jmp parse_form_bad
 
-    movzx edx, byte ptr [rax]
-    movzx ecx, byte ptr [rax + 1]
-    movzx r8d, byte ptr [rax + 2]
+parse_form_amount:
+    cmp qword ptr [rel form_amount_seen], 0
+    jne parse_form_bad
+    mov rsi, r14
+    add rsi, amount_key_len
+    mov r8, [rel form_token_end]
+    xor rax, rax
+    xor ecx, ecx
+
+parse_form_amount_digits:
+    cmp rsi, r8
+    jae parse_form_amount_done
+    movzx edx, byte ptr [rsi]
+    cmp dl, '0'
+    jb parse_form_bad
+    cmp dl, '9'
+    ja parse_form_bad
+    inc ecx
+    cmp ecx, 8
+    ja parse_form_bad
+    imul rax, rax, 10
+    sub edx, '0'
+    add rax, rdx
+    inc rsi
+    jmp parse_form_amount_digits
+
+parse_form_amount_done:
+    test ecx, ecx
+    jz parse_form_bad
+    test rax, rax
+    jz parse_form_bad
+    mov [rel current_amount], rax
+    mov qword ptr [rel form_amount_seen], 1
+    jmp parse_form_token_done
+
+parse_form_currency:
+    cmp qword ptr [rel form_currency_seen], 0
+    jne parse_form_bad
+    cmp qword ptr [rel form_token_len], currency_key_len + 3
+    jne parse_form_bad
+    lea rsi, [r14 + currency_key_len]
+    mov r8, [rel form_token_end]
+    lea r9, [rsi + 3]
+    cmp r9, r8
+    jne parse_form_bad
+
+    movzx edx, byte ptr [rsi]
+    movzx ecx, byte ptr [rsi + 1]
+    movzx r8d, byte ptr [rsi + 2]
     cmp dl, 'a'
-    jb parse_currency_bad
+    jb parse_form_bad
     cmp dl, 'z'
-    ja parse_currency_bad
+    ja parse_form_bad
     cmp cl, 'a'
-    jb parse_currency_bad
+    jb parse_form_bad
     cmp cl, 'z'
-    ja parse_currency_bad
+    ja parse_form_bad
     cmp r8b, 'a'
-    jb parse_currency_bad
+    jb parse_form_bad
     cmp r8b, 'z'
-    ja parse_currency_bad
+    ja parse_form_bad
 
     mov byte ptr [rel currency_tmp], dl
     mov byte ptr [rel currency_tmp + 1], cl
     mov byte ptr [rel currency_tmp + 2], r8b
     mov byte ptr [rel currency_tmp + 3], 0
+    mov qword ptr [rel form_currency_seen], 1
+
+parse_form_token_done:
+    mov rsi, [rel form_token_end]
+    cmp rsi, r15
+    je parse_form_complete
+    cmp byte ptr [rsi], '&'
+    jne parse_form_bad
+    inc rsi
+    cmp rsi, r15
+    jae parse_form_bad
+    mov r14, rsi
+    jmp parse_form_scan
+
+parse_form_complete:
+    cmp qword ptr [rel form_amount_seen], 1
+    jne parse_form_bad
+    cmp qword ptr [rel form_currency_seen], 1
+    jne parse_form_bad
     mov eax, 1
     ret
 
-parse_currency_bad:
+parse_form_bad:
     xor eax, eax
     ret
 
@@ -614,35 +686,29 @@ parse_currency_bad:
 parse_idempotency:
     mov qword ptr [rel current_idem_len], 0
     mov rsi, rbx
-    mov rcx, [rel request_len]
+    mov rcx, [rel header_len]
     lea rdi, [rel idem_header]
     mov edx, idem_header_len
     call find_sequence
     test rax, rax
-    jz parse_idempotency_done
+    jz parse_idempotency_no_header
     add rax, idem_header_len
     mov rsi, rax
     lea rdi, [rel current_idem]
     xor rcx, rcx
+    mov r8, rbx
+    add r8, [rel header_len]
 
 copy_idempotency:
-    cmp rcx, 255
-    jae idempotency_copied
-    cmp rsi, [rel body_ptr]
-    jb copy_idempotency_byte
-    # Headers end before the body; this comparison also bounds malformed input.
-copy_idempotency_byte:
-    cmp rsi, rbx
-    jb idempotency_copied
-    mov r8, rbx
-    add r8, [rel request_len]
     cmp rsi, r8
-    jae idempotency_copied
+    jae parse_idempotency_bad
     mov al, byte ptr [rsi]
     cmp al, 13
     je idempotency_copied
     cmp al, 10
     je idempotency_copied
+    cmp rcx, 255
+    jae parse_idempotency_bad
     mov byte ptr [rdi], al
     inc rsi
     inc rdi
@@ -650,8 +716,19 @@ copy_idempotency_byte:
     jmp copy_idempotency
 
 idempotency_copied:
+    test rcx, rcx
+    jz parse_idempotency_bad
     mov [rel current_idem_len], rcx
+    mov eax, 1
 parse_idempotency_done:
+    ret
+
+parse_idempotency_no_header:
+    mov eax, 1
+    ret
+
+parse_idempotency_bad:
+    xor eax, eax
     ret
 
 # check_idempotency: EAX=0 new, EAX=-1 conflict, EAX=stored sequence replay.
