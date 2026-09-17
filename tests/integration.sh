@@ -74,6 +74,33 @@ assert_body_contains() {
     fi
 }
 
+assert_header_contains() {
+    if ! grep -Fq -- "$1" "$TMP_DIR/headers"; then
+        printf 'response header did not contain: %s\n' "$1" >&2
+        cat "$TMP_DIR/headers" >&2
+        exit 1
+    fi
+}
+
+raw_request() {
+    python3 - "$@" <<'PY' >"$TMP_DIR/raw.resp"
+import socket
+import sys
+raw = sys.argv[1].replace('\n', '\r\n').encode()
+s = socket.create_connection(('127.0.0.1', 4242), timeout=2)
+s.sendall(raw)
+s.shutdown(socket.SHUT_WR)
+data = b''
+while True:
+    chunk = s.recv(4096)
+    if not chunk:
+        break
+    data += chunk
+s.close()
+sys.stdout.buffer.write(data)
+PY
+}
+
 ./build/x86pay_client 2000 usd >"$TMP_DIR/client.out"
 grep -Fq 'HTTP/1.1 200 OK' "$TMP_DIR/client.out"
 grep -Fq '"id":"pi_x86_1"' "$TMP_DIR/client.out"
@@ -261,5 +288,112 @@ request \
     'http://127.0.0.1:4242/v1/payment_intents'
 assert_status 200
 printf '%s\n' 'ok - request without key succeeds when table is full'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=4000&currency=usd' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 200
+assert_header_contains 'Request-Id: req_x86_'
+assert_body_contains '"request_id":"req_x86_'
+printf '%s\n' 'ok - success carries request ID'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/nope'
+assert_status 404
+assert_header_contains 'Request-Id: req_x86_'
+assert_body_contains '"type":"invalid_request_error"'
+assert_body_contains '"code":"resource_not_found"'
+assert_body_contains '"message":"resource not found"'
+assert_body_contains '"request_id":"req_x86_'
+printf '%s\n' 'ok - structured 404 error'
+
+request \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 401
+assert_header_contains 'Request-Id: req_x86_'
+assert_body_contains '"type":"authentication_error"'
+assert_body_contains '"code":"authentication_required"'
+assert_body_contains '"message":"authentication required"'
+printf '%s\n' 'ok - structured 401 error'
+
+request \
+    -H 'authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/payment_intents/pi_x86_1'
+assert_status 200
+assert_body_contains '"id":"pi_x86_1"'
+printf '%s\n' 'ok - case-insensitive authorization'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'content-type: application/x-www-form-urlencoded' \
+    --data 'amount=500&currency=eur' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 200
+assert_body_contains '"amount":500'
+printf '%s\n' 'ok - case-insensitive content type'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Authorization: Bearer x86_test_key' \
+    'http://127.0.0.1:4242/v1/payment_intents/pi_x86_1'
+assert_status 400
+assert_body_contains '"type":"invalid_request_error"'
+assert_body_contains '"code":"invalid_request"'
+printf '%s\n' 'ok - duplicate authorization rejected'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'authorization: Bearer wrong_key' \
+    'http://127.0.0.1:4242/v1/payment_intents/pi_x86_1'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - conflicting authorization rejected'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - duplicate content type rejected'
+
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Idempotency-Key: structured-dup-1' \
+    -H 'Idempotency-Key: structured-dup-1' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data 'amount=100&currency=usd' \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 400
+assert_body_contains 'invalid request'
+printf '%s\n' 'ok - duplicate idempotency key rejected'
+
+raw_request 'POST /v1/payment_intents HTTP/1.1
+Host: 127.0.0.1
+Authorization: Bearer x86_test_key
+Content-Length: 23
+content-length: 23
+Content-Type: application/x-www-form-urlencoded
+Connection: close
+
+amount=100&currency=usd'
+if ! grep -Fq '400' "$TMP_DIR/raw.resp"; then
+    printf 'expected raw HTTP 400 for duplicate content length\n' >&2
+    cat "$TMP_DIR/raw.resp" >&2
+    exit 1
+fi
+if ! grep -Fq 'Request-Id: req_x86_' "$TMP_DIR/raw.resp"; then
+    printf 'duplicate content length response missing request ID\n' >&2
+    cat "$TMP_DIR/raw.resp" >&2
+    exit 1
+fi
+printf '%s\n' 'ok - duplicate content length rejected'
 
 printf '%s\n' 'all integration tests passed'

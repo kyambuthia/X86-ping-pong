@@ -112,6 +112,16 @@ json_status_suffix_end:
 .equ IDEM_CURRENCY_OFF, 272
 .equ IDEM_SEQ_OFF, 280
 
+json_status_mid:
+    .ascii "\",\"status\":\"requires_payment_method\",\"request_id\":\"req_x86_"
+json_status_mid_end:
+.equ json_status_mid_len, json_status_mid_end - json_status_mid
+
+json_status_end:
+    .ascii "\"}"
+json_status_end_end:
+.equ json_status_end_len, json_status_end_end - json_status_end
+
 status_200:
     .ascii "200 OK"
 status_200_end:
@@ -172,6 +182,156 @@ body_507:
 body_507_end:
 .equ body_507_len, body_507_end - body_507
 
+auth_name:
+    .ascii "\r\nAuthorization:"
+auth_name_end:
+.equ auth_name_len, auth_name_end - auth_name
+
+auth_expected:
+    .ascii "Bearer x86_test_key"
+auth_expected_end:
+.equ auth_expected_len, auth_expected_end - auth_expected
+
+cl_name:
+    .ascii "\r\nContent-Length:"
+cl_name_end:
+.equ cl_name_len, cl_name_end - cl_name
+
+ct_name:
+    .ascii "\r\nContent-Type:"
+ct_name_end:
+.equ ct_name_len, ct_name_end - ct_name
+
+ct_expected:
+    .ascii "application/x-www-form-urlencoded"
+ct_expected_end:
+.equ ct_expected_len, ct_expected_end - ct_expected
+
+idem_name:
+    .ascii "\r\nIdempotency-Key:"
+idem_name_end:
+.equ idem_name_len, idem_name_end - idem_name
+
+req_id_hdr_prefix:
+    .ascii "\r\nRequest-Id: req_x86_"
+req_id_hdr_prefix_end:
+.equ req_id_hdr_prefix_len, req_id_hdr_prefix_end - req_id_hdr_prefix
+
+err_prefix:
+    .ascii "{\"error\":{\"type\":\""
+err_prefix_end:
+.equ err_prefix_len, err_prefix_end - err_prefix
+
+err_code_sep:
+    .ascii "\",\"code\":\""
+err_code_sep_end:
+.equ err_code_sep_len, err_code_sep_end - err_code_sep
+
+err_msg_sep:
+    .ascii "\",\"message\":\""
+err_msg_sep_end:
+.equ err_msg_sep_len, err_msg_sep_end - err_msg_sep
+
+err_req_sep:
+    .ascii "\",\"request_id\":\"req_x86_"
+err_req_sep_end:
+.equ err_req_sep_len, err_req_sep_end - err_req_sep
+
+err_suffix:
+    .ascii "\"}}"
+err_suffix_end:
+.equ err_suffix_len, err_suffix_end - err_suffix
+
+type_invalid:
+    .ascii "invalid_request_error"
+type_invalid_end:
+.equ type_invalid_len, type_invalid_end - type_invalid
+
+code_invalid:
+    .ascii "invalid_request"
+code_invalid_end:
+.equ code_invalid_len, code_invalid_end - code_invalid
+
+msg_invalid:
+    .ascii "invalid request"
+msg_invalid_end:
+.equ msg_invalid_len, msg_invalid_end - msg_invalid
+
+type_auth:
+    .ascii "authentication_error"
+type_auth_end:
+.equ type_auth_len, type_auth_end - type_auth
+
+code_auth:
+    .ascii "authentication_required"
+code_auth_end:
+.equ code_auth_len, code_auth_end - code_auth
+
+msg_auth:
+    .ascii "authentication required"
+msg_auth_end:
+.equ msg_auth_len, msg_auth_end - msg_auth
+
+type_notfound:
+    .ascii "invalid_request_error"
+type_notfound_end:
+.equ type_notfound_len, type_notfound_end - type_notfound
+
+code_notfound:
+    .ascii "resource_not_found"
+code_notfound_end:
+.equ code_notfound_len, code_notfound_end - code_notfound
+
+msg_notfound:
+    .ascii "resource not found"
+msg_notfound_end:
+.equ msg_notfound_len, msg_notfound_end - msg_notfound
+
+type_toolarge:
+    .ascii "invalid_request_error"
+type_toolarge_end:
+.equ type_toolarge_len, type_toolarge_end - type_toolarge
+
+code_toolarge:
+    .ascii "request_too_large"
+code_toolarge_end:
+.equ code_toolarge_len, code_toolarge_end - code_toolarge
+
+msg_toolarge:
+    .ascii "request body too large"
+msg_toolarge_end:
+.equ msg_toolarge_len, msg_toolarge_end - msg_toolarge
+
+type_idem:
+    .ascii "idempotency_error"
+type_idem_end:
+.equ type_idem_len, type_idem_end - type_idem
+
+code_idem:
+    .ascii "idempotency_key_in_use"
+code_idem_end:
+.equ code_idem_len, code_idem_end - code_idem
+
+msg_idem:
+    .ascii "idempotency key reused with different parameters"
+msg_idem_end:
+.equ msg_idem_len, msg_idem_end - msg_idem
+
+type_storage:
+    .ascii "api_error"
+type_storage_end:
+.equ type_storage_len, type_storage_end - type_storage
+
+code_storage:
+    .ascii "idempotency_table_full"
+code_storage_end:
+.equ code_storage_len, code_storage_end - code_storage
+
+msg_storage:
+    .ascii "idempotency table full"
+msg_storage_end:
+.equ msg_storage_len, msg_storage_end - msg_storage
+
 .section .bss
 
 .align 8
@@ -229,6 +389,12 @@ send_body_ptr:
 send_body_len:
     .quad 0
 response_seq:
+    .quad 0
+request_counter:
+    .quad 0
+current_req_id:
+    .quad 0
+hdr_tmp_first:
     .quad 0
 
 .section .text
@@ -308,6 +474,10 @@ accept_loop:
     mov r8d, 16
     syscall
 
+    inc qword ptr [rel request_counter]
+    mov rax, [rel request_counter]
+    mov [rel current_req_id], rax
+
     call read_request
     test rax, rax
     jz close_client
@@ -373,25 +543,58 @@ read_request_more:
     add r15, header_end_marker_len
     mov [rel header_len], r15
 
-    # Content-Length is required for a body. A request without it is treated
-    # as a zero-length request, which is sufficient for the GET endpoint.
+    # Content-Length is matched case-insensitively by name. A request
+    # without it is treated as a zero-length request (for GET).
     mov rsi, rbx
     mov rcx, r15
-    lea rdi, [rel content_length_header]
-    mov edx, content_length_header_len
-    call find_sequence
+    lea rdi, [rel cl_name]
+    mov edx, cl_name_len
+    call find_sequence_ci
     test rax, rax
     jz read_request_without_body
-    add rax, content_length_header_len
+    mov [rel hdr_tmp_first], rax
+    # Reject duplicate Content-Length headers (case-insensitive).
+    mov rsi, rax
+    inc rsi
+    mov r8, rbx
+    add r8, r15
+    cmp rsi, r8
+    jae cl_no_duplicate
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel cl_name]
+    mov edx, cl_name_len
+    call find_sequence_ci
+    test rax, rax
+    jnz read_request_failed
+cl_no_duplicate:
+    mov rax, [rel hdr_tmp_first]
+    add rax, cl_name_len
+    mov rsi, rax
     mov r8, rbx
     add r8, r15
     xor rdx, rdx
     xor r10d, r10d
+    # Skip leading OWS (space / tab) after the colon.
+cl_skip_leading:
+    cmp rsi, r8
+    jae read_request_failed
+    movzx r9d, byte ptr [rsi]
+    cmp r9b, 32
+    je cl_skip_leading_inc
+    cmp r9b, 9
+    je cl_skip_leading_inc
+    jmp cl_digits_start
+cl_skip_leading_inc:
+    inc rsi
+    jmp cl_skip_leading
+cl_digits_start:
+    jmp parse_content_length
 
 parse_content_length:
-    cmp rax, r8
+    cmp rsi, r8
     jae read_request_failed
-    movzx r9d, byte ptr [rax]
+    movzx r9d, byte ptr [rsi]
     cmp r9b, '0'
     jb content_length_done
     cmp r9b, '9'
@@ -408,16 +611,30 @@ content_length_accumulate:
     imul rdx, rdx, 10
     sub r9d, '0'
     add rdx, r9
-    inc rax
+    inc rsi
     inc r10
     jmp parse_content_length
 
 content_length_done:
     test r10, r10
     jz read_request_failed
-    cmp rax, r8
+    # Skip trailing OWS before the end of the header line.
+cl_skip_trailing:
+    cmp rsi, r8
     jae read_request_failed
-    movzx r9d, byte ptr [rax]
+    movzx r9d, byte ptr [rsi]
+    cmp r9b, 32
+    je cl_skip_trailing_inc
+    cmp r9b, 9
+    je cl_skip_trailing_inc
+    jmp cl_check_eol
+cl_skip_trailing_inc:
+    inc rsi
+    jmp cl_skip_trailing
+cl_check_eol:
+    cmp rsi, r8
+    jae read_request_failed
+    movzx r9d, byte ptr [rsi]
     cmp r9b, 13
     je content_length_valid
     cmp r9b, 10
@@ -464,13 +681,82 @@ read_request_too_large:
 handle_request:
     lea rbx, [rel request_buf]
 
-    # Every endpoint requires the local test key.
+    # Authorization header name is case-insensitive; the value stays exact.
+    # Missing or wrong credentials -> 401. Duplicates -> 400.
     mov rsi, rbx
-    mov rcx, [rel request_len]
-    lea rdi, [rel auth_header]
-    mov edx, auth_header_len
-    call find_sequence
+    mov rcx, [rel header_len]
+    lea rdi, [rel auth_name]
+    mov edx, auth_name_len
+    call find_sequence_ci
     test rax, rax
+    jz respond_401
+    mov [rel hdr_tmp_first], rax
+    mov rsi, rax
+    inc rsi
+    mov r8, rbx
+    add r8, [rel header_len]
+    cmp rsi, r8
+    jae auth_no_duplicate
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel auth_name]
+    mov edx, auth_name_len
+    call find_sequence_ci
+    test rax, rax
+    jnz respond_400
+auth_no_duplicate:
+    mov rax, [rel hdr_tmp_first]
+    add rax, auth_name_len
+    mov rsi, rax
+    mov r8, rbx
+    add r8, [rel header_len]
+auth_skip_leading:
+    cmp rsi, r8
+    jae respond_401
+    movzx eax, byte ptr [rsi]
+    cmp al, 32
+    je auth_skip_leading_inc
+    cmp al, 9
+    je auth_skip_leading_inc
+    jmp auth_value_start
+auth_skip_leading_inc:
+    inc rsi
+    jmp auth_skip_leading
+auth_value_start:
+    mov rdx, rsi
+auth_find_eol:
+    cmp rdx, r8
+    jae respond_401
+    movzx eax, byte ptr [rdx]
+    cmp al, 13
+    je auth_eol_found
+    cmp al, 10
+    je auth_eol_found
+    inc rdx
+    jmp auth_find_eol
+auth_eol_found:
+    mov rcx, rdx
+auth_trim_trailing:
+    cmp rcx, rsi
+    jbe auth_trim_done
+    movzx eax, byte ptr [rcx - 1]
+    cmp al, 32
+    je auth_trim_dec
+    cmp al, 9
+    je auth_trim_dec
+    jmp auth_trim_done
+auth_trim_dec:
+    dec rcx
+    jmp auth_trim_trailing
+auth_trim_done:
+    mov rax, rcx
+    sub rax, rsi
+    cmp rax, auth_expected_len
+    jne respond_401
+    mov rcx, rax
+    lea rdi, [rel auth_expected]
+    call buffers_equal
+    test eax, eax
     jz respond_401
 
     # POST /v1/payment_intents
@@ -494,12 +780,81 @@ handle_request:
 
 create_intent:
     # POST bodies must use the form encoding understood by this slice.
+    # Content-Type name is case-insensitive; value stays exact.
     mov rsi, rbx
     mov rcx, [rel header_len]
-    lea rdi, [rel content_type_header]
-    mov edx, content_type_header_len
-    call find_sequence
+    lea rdi, [rel ct_name]
+    mov edx, ct_name_len
+    call find_sequence_ci
     test rax, rax
+    jz respond_400
+    mov [rel hdr_tmp_first], rax
+    mov rsi, rax
+    inc rsi
+    mov r8, rbx
+    add r8, [rel header_len]
+    cmp rsi, r8
+    jae ct_no_duplicate
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel ct_name]
+    mov edx, ct_name_len
+    call find_sequence_ci
+    test rax, rax
+    jnz respond_400
+ct_no_duplicate:
+    mov rax, [rel hdr_tmp_first]
+    add rax, ct_name_len
+    mov rsi, rax
+    mov r8, rbx
+    add r8, [rel header_len]
+ct_skip_leading:
+    cmp rsi, r8
+    jae respond_400
+    movzx eax, byte ptr [rsi]
+    cmp al, 32
+    je ct_skip_leading_inc
+    cmp al, 9
+    je ct_skip_leading_inc
+    jmp ct_value_start
+ct_skip_leading_inc:
+    inc rsi
+    jmp ct_skip_leading
+ct_value_start:
+    mov rdx, rsi
+ct_find_eol:
+    cmp rdx, r8
+    jae respond_400
+    movzx eax, byte ptr [rdx]
+    cmp al, 13
+    je ct_eol_found
+    cmp al, 10
+    je ct_eol_found
+    inc rdx
+    jmp ct_find_eol
+ct_eol_found:
+    mov rcx, rdx
+ct_trim_trailing:
+    cmp rcx, rsi
+    jbe ct_trim_done
+    movzx eax, byte ptr [rcx - 1]
+    cmp al, 32
+    je ct_trim_dec
+    cmp al, 9
+    je ct_trim_dec
+    jmp ct_trim_done
+ct_trim_dec:
+    dec rcx
+    jmp ct_trim_trailing
+ct_trim_done:
+    mov rax, rcx
+    sub rax, rsi
+    cmp rax, ct_expected_len
+    jne respond_400
+    mov rcx, rax
+    lea rdi, [rel ct_expected]
+    call buffers_equal
+    test eax, eax
     jz respond_400
 
     # Locate the form body.
@@ -743,43 +1098,96 @@ parse_form_bad:
     xor eax, eax
     ret
 
-# parse_idempotency: copies the latest Idempotency-Key header into current_idem.
+# parse_idempotency: copies the Idempotency-Key header into current_idem.
+# Header name is case-insensitive. Duplicate headers are rejected.
 parse_idempotency:
     mov qword ptr [rel current_idem_len], 0
     mov rsi, rbx
     mov rcx, [rel header_len]
-    lea rdi, [rel idem_header]
-    mov edx, idem_header_len
-    call find_sequence
+    lea rdi, [rel idem_name]
+    mov edx, idem_name_len
+    call find_sequence_ci
     test rax, rax
     jz parse_idempotency_no_header
-    add rax, idem_header_len
+    mov [rel hdr_tmp_first], rax
     mov rsi, rax
-    lea rdi, [rel current_idem]
-    xor rcx, rcx
+    inc rsi
     mov r8, rbx
     add r8, [rel header_len]
-
-copy_idempotency:
+    cmp rsi, r8
+    jae idem_no_duplicate
+    mov rcx, r8
+    sub rcx, rsi
+    lea rdi, [rel idem_name]
+    mov edx, idem_name_len
+    call find_sequence_ci
+    test rax, rax
+    jnz parse_idempotency_bad
+idem_no_duplicate:
+    mov rax, [rel hdr_tmp_first]
+    add rax, idem_name_len
+    mov rsi, rax
+    mov r8, rbx
+    add r8, [rel header_len]
+idem_skip_leading:
     cmp rsi, r8
     jae parse_idempotency_bad
-    mov al, byte ptr [rsi]
-    cmp al, 13
-    je idempotency_copied
-    cmp al, 10
-    je idempotency_copied
-    cmp rcx, 255
+    movzx eax, byte ptr [rsi]
+    cmp al, 32
+    je idem_skip_leading_inc
+    cmp al, 9
+    je idem_skip_leading_inc
+    jmp idem_value_start
+idem_skip_leading_inc:
+    inc rsi
+    jmp idem_skip_leading
+idem_value_start:
+    mov rdx, rsi
+idem_find_eol:
+    cmp rdx, r8
     jae parse_idempotency_bad
+    movzx eax, byte ptr [rdx]
+    cmp al, 13
+    je idem_eol_found
+    cmp al, 10
+    je idem_eol_found
+    inc rdx
+    jmp idem_find_eol
+idem_eol_found:
+    mov rcx, rdx
+idem_trim_trailing:
+    cmp rcx, rsi
+    jbe idem_trim_done
+    movzx eax, byte ptr [rcx - 1]
+    cmp al, 32
+    je idem_trim_dec
+    cmp al, 9
+    je idem_trim_dec
+    jmp idem_trim_done
+idem_trim_dec:
+    dec rcx
+    jmp idem_trim_trailing
+idem_trim_done:
+    mov rax, rcx
+    sub rax, rsi
+    test rax, rax
+    jz parse_idempotency_bad
+    cmp rax, 255
+    ja parse_idempotency_bad
+    mov [rel current_idem_len], rax
+    lea rdi, [rel current_idem]
+    mov rcx, rax
+    # RSI already holds value start; copy RCX bytes.
+copy_idempotency_trimmed:
+    test rcx, rcx
+    jz idempotency_copied_ok
+    mov al, byte ptr [rsi]
     mov byte ptr [rdi], al
     inc rsi
     inc rdi
-    inc rcx
-    jmp copy_idempotency
-
-idempotency_copied:
-    test rcx, rcx
-    jz parse_idempotency_bad
-    mov [rel current_idem_len], rcx
+    dec rcx
+    jmp copy_idempotency_trimmed
+idempotency_copied_ok:
     mov eax, 1
 parse_idempotency_done:
     ret
@@ -931,8 +1339,51 @@ build_intent_json:
     mov ecx, 3
     call copy_to_r14
 
-    lea rsi, [rel json_status_suffix]
-    mov ecx, json_status_suffix_len
+    lea rsi, [rel json_status_mid]
+    mov ecx, json_status_mid_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel json_status_end]
+    mov ecx, json_status_end_len
+    call copy_to_r14
+    lea rax, [rel json_buf]
+    mov rdx, r14
+    sub rdx, rax
+    mov rax, rdx
+    ret
+
+# build_error_json: RSI=type ptr, RCX=type len, RDX=code ptr, R8=code len,
+# R9=msg ptr, R10=msg len. Returns RAX=body length in json_buf.
+build_error_json:
+    push rsi
+    push rcx
+    lea r14, [rel json_buf]
+    lea rsi, [rel err_prefix]
+    mov ecx, err_prefix_len
+    call copy_to_r14
+    pop rcx
+    pop rsi
+    call copy_to_r14
+    lea rsi, [rel err_code_sep]
+    mov ecx, err_code_sep_len
+    call copy_to_r14
+    mov rsi, rdx
+    mov rcx, r8
+    call copy_to_r14
+    lea rsi, [rel err_msg_sep]
+    mov ecx, err_msg_sep_len
+    call copy_to_r14
+    mov rsi, r9
+    mov rcx, r10
+    call copy_to_r14
+    lea rsi, [rel err_req_sep]
+    mov ecx, err_req_sep_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
+    call append_u64_to_r14
+    lea rsi, [rel err_suffix]
+    mov ecx, err_suffix_len
     call copy_to_r14
     lea rax, [rel json_buf]
     mov rdx, r14
@@ -958,6 +1409,11 @@ send_json:
     mov ecx, http_headers_len
     call copy_to_r14
     mov rax, [rel send_body_len]
+    call append_u64_to_r14
+    lea rsi, [rel req_id_hdr_prefix]
+    mov ecx, req_id_hdr_prefix_len
+    call copy_to_r14
+    mov rax, [rel current_req_id]
     call append_u64_to_r14
     lea rsi, [rel http_suffix]
     mov ecx, http_suffix_len
@@ -1047,51 +1503,144 @@ find_not_found:
     xor eax, eax
     ret
 
+# find_sequence_ci: same as find_sequence but ASCII case-insensitive.
+find_sequence_ci:
+    mov r8, rsi
+    mov r9, rcx
+    mov r11, rdi
+    xor r10, r10
+    test rdx, rdx
+    jz find_ci_not_found
+find_ci_scan:
+    cmp r10, r9
+    jae find_ci_not_found
+    mov rax, r9
+    sub rax, r10
+    cmp rax, rdx
+    jb find_ci_not_found
+    lea rsi, [r8 + r10]
+    mov rdi, r11
+    mov rcx, rdx
+find_ci_cmp:
+    test rcx, rcx
+    jz find_ci_found
+    mov al, byte ptr [rsi]
+    mov ah, byte ptr [rdi]
+    cmp al, 65
+    jb find_ci_no_lower_al
+    cmp al, 90
+    ja find_ci_no_lower_al
+    add al, 32
+find_ci_no_lower_al:
+    cmp ah, 65
+    jb find_ci_no_lower_ah
+    cmp ah, 90
+    ja find_ci_no_lower_ah
+    add ah, 32
+find_ci_no_lower_ah:
+    cmp al, ah
+    jne find_ci_next
+    inc rsi
+    inc rdi
+    dec rcx
+    jmp find_ci_cmp
+find_ci_next:
+    inc r10
+    jmp find_ci_scan
+find_ci_found:
+    lea rax, [r8 + r10]
+    ret
+find_ci_not_found:
+    xor eax, eax
+    ret
+
 respond_400:
+    lea rsi, [rel type_invalid]
+    mov ecx, type_invalid_len
+    lea rdx, [rel code_invalid]
+    mov r8d, code_invalid_len
+    lea r9, [rel msg_invalid]
+    mov r10d, msg_invalid_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
     lea rsi, [rel status_400]
     mov ecx, status_400_len
-    lea rdx, [rel body_400]
-    mov r8d, body_400_len
     call send_json
     ret
 
 respond_idem_conflict:
+    lea rsi, [rel type_idem]
+    mov ecx, type_idem_len
+    lea rdx, [rel code_idem]
+    mov r8d, code_idem_len
+    lea r9, [rel msg_idem]
+    mov r10d, msg_idem_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
     lea rsi, [rel status_400]
     mov ecx, status_400_len
-    lea rdx, [rel body_idem_conflict]
-    mov r8d, body_idem_conflict_len
     call send_json
     ret
 
 respond_table_full:
+    lea rsi, [rel type_storage]
+    mov ecx, type_storage_len
+    lea rdx, [rel code_storage]
+    mov r8d, code_storage_len
+    lea r9, [rel msg_storage]
+    mov r10d, msg_storage_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
     lea rsi, [rel status_507]
     mov ecx, status_507_len
-    lea rdx, [rel body_507]
-    mov r8d, body_507_len
     call send_json
     ret
 
 respond_401:
+    lea rsi, [rel type_auth]
+    mov ecx, type_auth_len
+    lea rdx, [rel code_auth]
+    mov r8d, code_auth_len
+    lea r9, [rel msg_auth]
+    mov r10d, msg_auth_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
     lea rsi, [rel status_401]
     mov ecx, status_401_len
-    lea rdx, [rel body_401]
-    mov r8d, body_401_len
     call send_json
     ret
 
 respond_404:
+    lea rsi, [rel type_notfound]
+    mov ecx, type_notfound_len
+    lea rdx, [rel code_notfound]
+    mov r8d, code_notfound_len
+    lea r9, [rel msg_notfound]
+    mov r10d, msg_notfound_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
     lea rsi, [rel status_404]
     mov ecx, status_404_len
-    lea rdx, [rel body_404]
-    mov r8d, body_404_len
     call send_json
     ret
 
 respond_413:
+    lea rsi, [rel type_toolarge]
+    mov ecx, type_toolarge_len
+    lea rdx, [rel code_toolarge]
+    mov r8d, code_toolarge_len
+    lea r9, [rel msg_toolarge]
+    mov r10d, msg_toolarge_len
+    call build_error_json
+    mov r8, rax
+    lea rdx, [rel json_buf]
     lea rsi, [rel status_413]
     mov ecx, status_413_len
-    lea rdx, [rel body_413]
-    mov r8d, body_413_len
     call send_json
     ret
 
