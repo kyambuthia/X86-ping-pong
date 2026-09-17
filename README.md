@@ -20,6 +20,8 @@ The server currently supports:
 - JSON responses with a Stripe-inspired `PaymentIntent` shape
 - A small in-memory idempotency-key replay path
 
+See the [planned wallet API reference](docs/API.md) for the complete API specification.
+
 The bundled client creates a PaymentIntent against `127.0.0.1:4242`. The
 amount and currency can be supplied as arguments:
 
