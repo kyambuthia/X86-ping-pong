@@ -86,12 +86,10 @@ authentication, PaymentIntent lifecycle resources, and idempotency keys.
 
 ## Planned roadmap
 
-1. Make request reads length-aware instead of assuming one complete request per
-   connection.
-2. Add a proper HTTP parser, structured errors, and request IDs.
-3. Add more PaymentIntent transitions such as confirm and cancel.
-4. Add durable storage and concurrent connection handling.
-5. Add an explicit test mode and a separate storage boundary before considering
+1. Add a proper HTTP parser, structured errors, and request IDs.
+2. Add more PaymentIntent transitions such as confirm and cancel.
+3. Add durable storage and concurrent connection handling.
+4. Add an explicit test mode and a separate storage boundary before considering
    any external integration.
 
 ## License

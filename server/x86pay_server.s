@@ -33,6 +33,11 @@ get_route:
 get_route_end:
 .equ get_route_len, get_route_end - get_route
 
+content_length_header:
+    .ascii "Content-Length: "
+content_length_header_end:
+.equ content_length_header_len, content_length_header_end - content_length_header
+
 header_end_marker:
     .ascii "\r\n\r\n"
 header_end_marker_end:
@@ -103,6 +108,11 @@ status_404:
 status_404_end:
 .equ status_404_len, status_404_end - status_404
 
+status_413:
+    .ascii "413 Payload Too Large"
+status_413_end:
+.equ status_413_len, status_413_end - status_413
+
 body_400:
     .ascii "{\"error\":{\"message\":\"invalid request\"}}"
 body_400_end:
@@ -117,6 +127,11 @@ body_404:
     .ascii "{\"error\":{\"message\":\"resource not found\"}}"
 body_404_end:
 .equ body_404_len, body_404_end - body_404
+
+body_413:
+    .ascii "{\"error\":{\"message\":\"request body too large\"}}"
+body_413_end:
+.equ body_413_len, body_413_end - body_413
 
 body_idem_conflict:
     .ascii "{\"error\":{\"message\":\"idempotency key reused with different parameters\"}}"
@@ -229,15 +244,10 @@ accept_loop:
     js exit_failure
     mov r13, rax
 
-    # This first slice intentionally handles one complete request per
-    # connection. The bundled client sends the request in one write.
-    mov eax, 0
-    mov rdi, r13
-    lea rsi, [rel request_buf]
-    mov edx, 8192
-    syscall
+    call read_request
     test rax, rax
-    jle close_client
+    jz close_client
+    js request_read_error
     mov [rel request_len], rax
     call handle_request
 
@@ -246,6 +256,138 @@ close_client:
     mov rdi, r13
     syscall
     jmp accept_loop
+
+request_read_error:
+    cmp rax, -2
+    je request_too_large_response
+    call respond_400
+    jmp close_client
+
+request_too_large_response:
+    call respond_413
+    jmp close_client
+
+# read_request: read one request, including its declared body, into request_buf.
+# Returns RAX=request length, 0 for a clean peer close, -1 for malformed input,
+# and -2 when the request exceeds the fixed request buffer.
+read_request:
+    xor r14, r14
+
+read_request_more:
+    cmp r14, 8192
+    jae read_request_too_large
+
+    mov eax, 0
+    mov rdi, r13
+    lea rsi, [rel request_buf]
+    add rsi, r14
+    mov edx, 8192
+    sub rdx, r14
+    syscall
+    cmp rax, -4           # EINTR
+    je read_request_more
+    test rax, rax
+    jle read_request_failed
+    add r14, rax
+    mov [rel request_len], r14
+
+    # Wait until the complete HTTP header block is present.
+    lea rbx, [rel request_buf]
+    mov rsi, rbx
+    mov rcx, r14
+    lea rdi, [rel header_end_marker]
+    mov edx, header_end_marker_len
+    call find_sequence
+    test rax, rax
+    jz read_request_more_or_full
+
+    # R15 is the number of bytes through the end of the header block.
+    mov r15, rax
+    sub r15, rbx
+    add r15, header_end_marker_len
+
+    # Content-Length is required for a body. A request without it is treated
+    # as a zero-length request, which is sufficient for the GET endpoint.
+    mov rsi, rbx
+    mov rcx, r15
+    lea rdi, [rel content_length_header]
+    mov edx, content_length_header_len
+    call find_sequence
+    test rax, rax
+    jz read_request_without_body
+    add rax, content_length_header_len
+    mov r8, rbx
+    add r8, r15
+    xor rdx, rdx
+    xor r10d, r10d
+
+parse_content_length:
+    cmp rax, r8
+    jae read_request_failed
+    movzx r9d, byte ptr [rax]
+    cmp r9b, '0'
+    jb content_length_done
+    cmp r9b, '9'
+    ja content_length_done
+
+    # Reject values that cannot fit in the request buffer before multiplying.
+    cmp rdx, 819
+    ja read_request_too_large
+    jne content_length_accumulate
+    cmp r9b, '2'
+    ja read_request_too_large
+
+content_length_accumulate:
+    imul rdx, rdx, 10
+    sub r9d, '0'
+    add rdx, r9
+    inc rax
+    inc r10
+    jmp parse_content_length
+
+content_length_done:
+    test r10, r10
+    jz read_request_failed
+    cmp rax, r8
+    jae read_request_failed
+    movzx r9d, byte ptr [rax]
+    cmp r9b, 13
+    je content_length_valid
+    cmp r9b, 10
+    jne read_request_failed
+
+content_length_valid:
+    mov rax, r15
+    add rax, rdx
+    cmp rax, 8192
+    ja read_request_too_large
+    cmp r14, rax
+    ja read_request_failed
+    je read_request_complete
+    jmp read_request_more
+
+read_request_without_body:
+    cmp r14, r15
+    jne read_request_failed
+    mov rax, r14
+    ret
+
+read_request_more_or_full:
+    cmp r14, 8192
+    jae read_request_too_large
+    jmp read_request_more
+
+read_request_complete:
+    mov rax, r14
+    ret
+
+read_request_failed:
+    mov rax, -1
+    ret
+
+read_request_too_large:
+    mov rax, -2
+    ret
 
 handle_request:
     lea rbx, [rel request_buf]
@@ -725,6 +867,14 @@ respond_404:
     mov ecx, status_404_len
     lea rdx, [rel body_404]
     mov r8d, body_404_len
+    call send_json
+    ret
+
+respond_413:
+    lea rsi, [rel status_413]
+    mov ecx, status_413_len
+    lea rdx, [rel body_413]
+    mov r8d, body_413_len
     call send_json
     ret
 

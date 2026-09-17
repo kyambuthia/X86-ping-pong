@@ -132,4 +132,15 @@ assert_status 404
 assert_body_contains 'resource not found'
 printf '%s\n' 'ok - unknown route'
 
+printf '%s' 'amount=1&currency=usd&padding=' >"$TMP_DIR/oversized.body"
+dd if=/dev/zero bs=9000 count=1 2>/dev/null | tr '\000' 'x' >>"$TMP_DIR/oversized.body"
+request \
+    -H 'Authorization: Bearer x86_test_key' \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data-binary "@$TMP_DIR/oversized.body" \
+    'http://127.0.0.1:4242/v1/payment_intents'
+assert_status 413
+assert_body_contains 'request body too large'
+printf '%s\n' 'ok - oversized request rejection'
+
 printf '%s\n' 'all integration tests passed'
